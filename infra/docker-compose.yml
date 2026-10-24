@@ -1,0 +1,88 @@
+name: netpnl
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netpnl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netpnl}
+      POSTGRES_DB: ${POSTGRES_DB:-netpnl}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netpnl} -d ${POSTGRES_DB:-netpnl}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # One-shot migration runner. The API waits for this to finish successfully.
+  migrate:
+    build:
+      context: ../backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-netpnl}:${POSTGRES_PASSWORD:-netpnl}@postgres:5432/${POSTGRES_DB:-netpnl}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in infra/.env}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-netpnl}:${POSTGRES_PASSWORD:-netpnl}@postgres:5432/${POSTGRES_DB:-netpnl}
+      AUTO_CREATE_TABLES: "false"
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in infra/.env}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      UPSTOX_CLIENT_ID: ${UPSTOX_CLIENT_ID:-}
+      UPSTOX_CLIENT_SECRET: ${UPSTOX_CLIENT_SECRET:-}
+      UPSTOX_REDIRECT_URI: ${UPSTOX_REDIRECT_URI:-http://localhost:3000/settings/brokers/callback}
+      ZERODHA_API_KEY: ${ZERODHA_API_KEY:-}
+      ZERODHA_API_SECRET: ${ZERODHA_API_SECRET:-}
+      ZERODHA_REDIRECT_URI: ${ZERODHA_REDIRECT_URI:-http://localhost:3000/settings/brokers/callback}
+      UPI_PROVIDER: ${UPI_PROVIDER:-mock}
+      CASHFREE_CLIENT_ID: ${CASHFREE_CLIENT_ID:-}
+      CASHFREE_CLIENT_SECRET: ${CASHFREE_CLIENT_SECRET:-}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      SYNC_ENABLED: ${SYNC_ENABLED:-true}
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-30}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        # This URL is compiled into the browser bundle, so it must be the
+        # address the browser can reach, not the internal Docker hostname.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

@@ -1,0 +1,16 @@
+# Build context should stay small: node_modules is reinstalled inside the
+# image and .next is rebuilt from scratch.
+node_modules
+.next
+out
+build
+coverage
+.git
+.gitignore
+Dockerfile
+.dockerignore
+npm-debug.log*
+.env*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,313 @@
+@import "tailwindcss";
+
+@theme {
+  /* --- Surfaces: flat, light, layered by hairline not by glow -------------- */
+  --color-canvas: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-surface-alt: #fafbfc;
+  --color-surface-sunken: #eef1f4;
+
+  /* --- Ink ---------------------------------------------------------------- */
+  --color-foreground: #1e242b;
+  --color-ink-soft: #58616c;
+  --color-muted: #8a939e;
+
+  /* --- Hairlines ---------------------------------------------------------- */
+  --color-line: #e5e8ec;
+  --color-line-strong: #d5d9de;
+
+  /* --- Brand: Zerodha blue. Chrome only, never a number. ------------------ */
+  --color-brand: #387ed1;
+  --color-brand-dark: #2b62a8;
+  --color-brand-soft: #eaf2fb;
+
+  /* --- Semantics: reserved for numbers only. ------------------------------ */
+  --color-profit: #0f9960;
+  --color-profit-soft: #e8f5ef;
+  --color-loss: #d64545;
+  --color-loss-soft: #fceded;
+  --color-amber: #a86a12;
+  --color-amber-soft: #fdf5e6;
+  --color-signal: #387ed1;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-roboto-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --animate-shimmer: shimmer 2.4s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+:root {
+  --background: var(--color-canvas);
+  --foreground: var(--color-foreground);
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Selection and focus read as native, not as a glow. */
+::selection {
+  background: #d5e6f9;
+  color: #1e242b;
+}
+
+/* --------------------------------------------------------------------------
+   Surfaces
+   -------------------------------------------------------------------------- */
+
+/* Standard content card: white, hairline border, whisper of shadow. */
+@utility card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+/* Recessed panel: for secondary blocks that should not compete with cards. */
+@utility panel {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+}
+
+/* Table row hover. */
+@utility row-hover {
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background-color: var(--color-surface-alt);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Type
+   -------------------------------------------------------------------------- */
+
+/* Figures: tabular so columns of money line up like a statement. */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+/* Section label: small, quiet, uppercase. */
+@utility eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Component primitives
+   -------------------------------------------------------------------------- */
+@utility btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  padding: 0.5rem 0.875rem;
+  line-height: 1.25rem;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+  white-space: nowrap;
+
+  &:active:not(:disabled) {
+    background-color: #eef1f4;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(56, 126, 209, 0.22);
+  }
+}
+
+/* Primary action — the one call to action per view. */
+@utility btn-primary {
+  background-color: var(--color-brand);
+  border: 1px solid var(--color-brand);
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-brand-dark);
+    border-color: var(--color-brand-dark);
+  }
+
+  &:active:not(:disabled) {
+    background-color: #24518b;
+  }
+}
+
+/* Secondary action — outlined, neutral. */
+@utility btn-secondary {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-foreground);
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-surface-alt);
+    border-color: #c3c9d0;
+  }
+}
+
+/* Tertiary action — text only. */
+@utility btn-ghost {
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--color-ink-soft);
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-surface-sunken);
+    color: var(--color-foreground);
+  }
+}
+
+/* Semantic actions, reserved for profit and loss contexts. */
+@utility btn-profit {
+  background-color: var(--color-profit);
+  border: 1px solid var(--color-profit);
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: #0c8352;
+    border-color: #0c8352;
+  }
+}
+
+@utility btn-loss {
+  background-color: var(--color-loss);
+  border: 1px solid var(--color-loss);
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: #bb3838;
+    border-color: #bb3838;
+  }
+}
+
+@utility input-base {
+  width: 100%;
+  border-radius: 0.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--color-foreground);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+
+  &::placeholder {
+    color: var(--color-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px rgba(56, 126, 209, 0.14);
+  }
+
+  &:disabled {
+    background: var(--color-surface-alt);
+    color: var(--color-muted);
+  }
+}
+
+/* Small status pill. */
+@utility badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface-alt);
+  padding: 0.125rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+}
+
+/* Inline text link. */
+@utility link {
+  color: var(--color-brand);
+  transition: color 140ms ease;
+
+  &:hover {
+    color: var(--color-brand-dark);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c8ced5 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #c8ced5;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #adb5be;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
