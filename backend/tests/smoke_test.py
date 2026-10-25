@@ -224,7 +224,7 @@ def main() -> int:
         check("second trader registers", res.status_code == 201, res.text)
         second_auth = {"Authorization": f"Bearer {res.json()['access_token']}"}
         res = client.post(
-            f"{API}/pnl/", headers=second_auth, json={"net_pnl": 500}
+            f"{API}/pnl/", headers=second_auth, json={"net_pnl": 500, "date": "2026-10-24"}
         )
         check("second trader publishes", res.status_code == 201, res.text)
 

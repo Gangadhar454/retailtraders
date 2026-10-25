@@ -1,0 +1,15 @@
+name: netpnl-frontend
+
+services:
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://retailtraders.duckdns.org
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://retailtraders.duckdns.org
+    ports:
+      - "127.0.0.1:3000:3000"
