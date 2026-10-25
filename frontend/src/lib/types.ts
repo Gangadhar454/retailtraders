@@ -108,6 +108,7 @@ export interface Sentiment {
   date: string;
   net_pnl_total: number;
   since_launch_net_pnl: number;
+  since_launch_verified_pnl?: number;
   since_launch_date: string;
   trader_count: number;
   verified_net_pnl: number;

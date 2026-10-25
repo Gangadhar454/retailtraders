@@ -52,6 +52,7 @@ export function SentimentBanner({
   const tone = pnlTone(sentiment?.net_pnl_total ?? 0);
   const total = sentiment?.net_pnl_total ?? 0;
   const sinceLaunchTotal = sentiment?.since_launch_net_pnl ?? 0;
+  const sinceLaunchVerifiedTotal = sentiment?.since_launch_verified_pnl ?? 0;
   const traderCount = sentiment?.trader_count ?? 0;
 
   return (
@@ -99,7 +100,7 @@ export function SentimentBanner({
         </div>
       </div>
 
-      <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
+      <div className="grid gap-4 px-4 py-4 lg:grid-cols-3 sm:grid-cols-2">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
             Today
@@ -108,7 +109,7 @@ export function SentimentBanner({
             <AnimatedNumber
               value={total}
               signed
-              className={`text-[32px] font-semibold leading-none tracking-tight sm:text-[36px] ${toneClass(tone)}`}
+              className={`text-[30px] font-semibold leading-none tracking-tight sm:text-[34px] ${toneClass(tone)}`}
             />
             <motion.p
               initial={{ opacity: 0 }}
@@ -132,8 +133,28 @@ export function SentimentBanner({
           <AnimatedNumber
             value={sinceLaunchTotal}
             signed
-            className={`numeric mt-1 block text-[26px] font-semibold leading-none tracking-tight sm:text-[30px] ${toneClass(pnlTone(sinceLaunchTotal))}`}
+            className={`numeric mt-1 block text-[24px] font-semibold leading-none tracking-tight sm:text-[28px] ${toneClass(pnlTone(sinceLaunchTotal))}`}
           />
+          <p className="mt-1 text-[11px] text-muted">All published trades</p>
+        </div>
+
+        <div className="border-t border-line pt-3 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand/15 text-brand" title="Broker-verified">
+              <svg viewBox="0 0 16 16" fill="none" className="h-2.5 w-2.5 stroke-brand stroke-2">
+                <path d="M3.5 8.5L6.5 11.5L12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+              Verified P&amp;L since Oct 25, 2026
+            </p>
+          </div>
+          <AnimatedNumber
+            value={sinceLaunchVerifiedTotal}
+            signed
+            className={`numeric mt-1 block text-[24px] font-semibold leading-none tracking-tight sm:text-[28px] ${toneClass(pnlTone(sinceLaunchVerifiedTotal))}`}
+          />
+          <p className="mt-1 text-[11px] text-muted">100% broker-verified trades</p>
         </div>
       </div>
 

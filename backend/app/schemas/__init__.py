@@ -255,6 +255,7 @@ class SentimentResponse(BaseModel):
     date: date_type
     net_pnl_total: float
     since_launch_net_pnl: float
+    since_launch_verified_pnl: float = 0.0
     since_launch_date: date_type
     trader_count: int
     verified_net_pnl: float

@@ -42,6 +42,9 @@ async def sentiment(db: DbSession, day: date | None = Query(default=None)) -> Se
     # Lifetime community total — every published day, including dates
     # before the static "since Oct 25" label.
     since_launch_total = await db.scalar(select(func.sum(PnLRecord.net_pnl)))
+    since_launch_verified_total = await db.scalar(
+        select(func.sum(PnLRecord.net_pnl)).where(PnLRecord.is_verified.is_(True))
+    )
 
     rows = (
         await db.execute(
@@ -95,6 +98,7 @@ async def sentiment(db: DbSession, day: date | None = Query(default=None)) -> Se
         date=target,
         net_pnl_total=round(total, 2),
         since_launch_net_pnl=round(float(since_launch_total or 0), 2),
+        since_launch_verified_pnl=round(float(since_launch_verified_total or 0), 2),
         since_launch_date=LAUNCH_DATE,
         trader_count=count,
         verified_net_pnl=round(verified_total, 2),

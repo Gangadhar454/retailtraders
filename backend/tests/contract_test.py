@@ -69,7 +69,7 @@ RECORD_KEYS = {
     "broker_source", "source", "trade_count", "win_rate", "notes", "created_at",
 }
 SENTIMENT_KEYS = {
-    "date", "net_pnl_total", "since_launch_net_pnl", "since_launch_date",
+    "date", "net_pnl_total", "since_launch_net_pnl", "since_launch_verified_pnl", "since_launch_date",
     "trader_count", "verified_net_pnl",
     "unverified_net_pnl", "verified_count", "unverified_count",
     "profitable_count", "losing_count", "average_pnl", "biggest_loss",
