@@ -102,6 +102,7 @@ async def redact_angel_one_callback_tokens(request: Request, call_next):
         query = parse_qs(request.scope["query_string"].decode())
         request.scope["angel_one_auth_token"] = query.pop("auth_token", [None])[0]
         query.pop("feed_token", None)
+        query.pop("refresh_token", None)
         request.scope["query_string"] = urlencode(query, doseq=True).encode()
     return await call_next(request)
 

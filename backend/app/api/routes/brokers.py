@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlparse
@@ -26,6 +27,7 @@ from app.services.zerodha import ZerodhaClient
 from app.services.zerodha import ZerodhaTokenSet
 
 router = APIRouter(prefix="/brokers", tags=["brokers"])
+logger = logging.getLogger(__name__)
 
 STATE_TTL = timedelta(minutes=15)
 
@@ -169,6 +171,11 @@ async def angel_one_publisher_callback(
     auth_token = request.scope.get("angel_one_auth_token")
     await db.delete(state_row)
     if user is None or not auth_token:
+        logger.warning(
+            "Angel One callback missing user or auth_token: user=%s, auth_token_present=%s",
+            bool(user),
+            bool(auth_token),
+        )
         return _callback_redirect(redirect_to, error="connection_failed")
 
     try:
@@ -179,7 +186,8 @@ async def angel_one_publisher_callback(
             AngelOneClient(),
             str(auth_token),
         )
-    except BrokerError:
+    except BrokerError as exc:
+        logger.exception("Angel One broker account linking failed: %s", exc)
         return _callback_redirect(redirect_to, error="connection_failed")
 
     await db.flush()
