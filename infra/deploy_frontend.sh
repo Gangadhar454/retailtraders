@@ -73,3 +73,4 @@ docker compose -f infra/frontend/docker-compose.prod.yml down --remove-orphans |
 docker compose -f infra/frontend/docker-compose.prod.yml up -d --build
 
 echo "=== Setup complete! Access your application at https://${DOMAIN} ==="
+

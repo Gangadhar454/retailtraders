@@ -118,6 +118,10 @@ function PublishView() {
         setHistoryTotal(data.total);
         setHistoryHasMore(data.has_more);
       } catch (err) {
+        setHistoryError(
+          err instanceof ApiError ? err.message : "Could not load publish history"
+        );
+      } finally {
         setHistoryLoading(false);
         historyBusyRef.current = false;
       }

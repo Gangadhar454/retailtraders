@@ -13,3 +13,4 @@ services:
       - NEXT_PUBLIC_API_URL=https://retailtraders.duckdns.org
     ports:
       - "127.0.0.1:3000:3000"
+

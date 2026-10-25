@@ -57,3 +57,4 @@ done
 echo "WARNING: Backend health check timed out. Checking container logs:"
 docker compose -f infra/backend/docker-compose.prod.yml logs --tail 30
 exit 1
+

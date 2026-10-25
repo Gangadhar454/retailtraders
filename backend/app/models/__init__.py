@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Double,
     Enum,
     Float,
     ForeignKey,
@@ -126,7 +127,7 @@ class PnLRecord(Base):
         Uuid(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), index=True
     )
     date: Mapped[date] = mapped_column(Date, index=True)
-    net_pnl: Mapped[float] = mapped_column(Float)
+    net_pnl: Mapped[float] = mapped_column(Double)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     broker_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
     source: Mapped[str] = mapped_column(
@@ -137,7 +138,7 @@ class PnLRecord(Base):
     notes: Mapped[str | None] = mapped_column(String(280), nullable=True)
     shareable_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Manually entered P&L for the day (overrides previous manual entry).
-    manual_net_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    manual_net_pnl: Mapped[float | None] = mapped_column(Double, nullable=True)
     # Trade count of the manual entry, kept separate from broker-fetched trades.
     manual_trade_count: Mapped[int] = mapped_column(Integer, default=0)
     # True when the user has made a manual entry for this day. Makes the
@@ -174,7 +175,7 @@ class BrokerPnLDaily(Base):
     broker_name: Mapped[str] = mapped_column(
         Enum(BrokerName, name="broker_name_enum"), nullable=False
     )
-    net_pnl: Mapped[float] = mapped_column(Float, default=0.0)
+    net_pnl: Mapped[float] = mapped_column(Double, default=0.0)
     trade_count: Mapped[int] = mapped_column(Integer, default=0)
     win_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(

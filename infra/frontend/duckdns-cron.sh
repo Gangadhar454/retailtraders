@@ -13,3 +13,4 @@ fi
 
 RESPONSE=$(curl -fsS "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=")
 echo "$(date): DuckDNS update for ${DUCKDNS_DOMAIN}.duckdns.org: ${RESPONSE}"
+

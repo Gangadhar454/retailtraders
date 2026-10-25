@@ -125,7 +125,8 @@ class BrokerCallbackRequest(BaseModel):
 # P&L
 # --------------------------------------------------------------------------
 class PnLCreateRequest(BaseModel):
-    net_pnl: float = Field(ge=-10_000_000, le=10_000_000)
+    # Support high-volume traders and multi-year cumulative aggregations up to +/- 10 Crore Crore (1 Quadrillion INR)
+    net_pnl: float = Field(ge=-1_000_000_000_000_000, le=1_000_000_000_000_000)
     date: date_type | None = None
     notes: str | None = Field(default=None, max_length=280)
     trade_count: int = Field(default=0, ge=0, le=10_000)

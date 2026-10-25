@@ -55,15 +55,36 @@ export function clearTokens(): void {
   window.localStorage.removeItem(REFRESH_KEY);
 }
 
+function cleanErrorMsg(msg: string): string {
+  if (!msg) return "Invalid request";
+  return msg.replace(/^Value error,\s*/i, "").trim();
+}
+
 function extractDetail(payload: unknown): string {
   if (!payload) return "Something went wrong";
-  if (typeof payload === "string") return payload;
+  if (typeof payload === "string") return cleanErrorMsg(payload);
   if (Array.isArray(payload)) {
-    const first = payload[0] as { msg?: string; detail?: string } | undefined;
-    return first?.msg ?? first?.detail ?? "Invalid request";
+    if (payload.length === 0) return "Invalid request";
+    const first = payload[0];
+    if (typeof first === "string") return cleanErrorMsg(first);
+    if (typeof first === "object" && first !== null) {
+      const item = first as { msg?: string; detail?: string; message?: string };
+      return cleanErrorMsg(item.msg ?? item.detail ?? item.message ?? "Invalid request");
+    }
+    return cleanErrorMsg(String(first));
   }
-  const record = payload as { detail?: string; message?: string };
-  return record.detail ?? record.message ?? "Something went wrong";
+  if (typeof payload === "object" && payload !== null) {
+    const record = payload as Record<string, unknown>;
+    if (typeof record.detail === "string") return cleanErrorMsg(record.detail);
+    if (typeof record.message === "string") return cleanErrorMsg(record.message);
+    if (Array.isArray(record.detail)) {
+      return extractDetail(record.detail);
+    }
+    if (typeof record.detail === "object" && record.detail !== null) {
+      return extractDetail(record.detail);
+    }
+  }
+  return "Something went wrong";
 }
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
