@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
-import { CopyButton } from "@/components/CopyButton";
 import { UpiQr } from "@/components/UpiQr";
 
 interface DonateModalProps {
@@ -43,21 +42,22 @@ export function DonateModal({
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: "spring", stiffness: 460, damping: 40 }}
             onClick={(e) => e.stopPropagation()}
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-xs -translate-x-1/2 -translate-y-1/2"
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4"
           >
-            <div className="card p-5 sm:p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
+            <div className="card p-5 sm:p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold text-foreground">
                   Donate to {resolvedName ?? upiId}
                 </h2>
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close"
                   className="rounded p-1.5 text-ink-soft hover:bg-surface-alt hover:text-foreground transition-colors"
                 >
                   <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
@@ -72,32 +72,17 @@ export function DonateModal({
                 </button>
               </div>
 
-              <p className="text-[12px] text-muted mb-4">
-                Scan the QR below or copy the UPI ID to send a voluntary gift.
-                Transfers happen directly between your UPI app and the trader —
-                the platform never holds funds.
-              </p>
-
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center">
                 <UpiQr
                   upiId={upiId}
                   payeeName={resolvedName ?? undefined}
                   canTip
-                  size={220}
+                  size={200}
                 />
-                <div className="flex items-center justify-between gap-2 w-full max-w-xs">
-                  <span className="truncate text-[13px] font-semibold text-foreground">
-                    {upiId}
-                  </span>
-                  <CopyButton
-                    value={upiId}
-                    className="shrink-0 rounded border border-line-strong bg-surface px-3 py-1.5 text-[12px] text-ink-soft transition-colors hover:bg-surface-sunken hover:text-foreground"
-                  />
-                </div>
               </div>
 
-              <p className="mt-4 text-center text-[11px] leading-relaxed text-muted">
-                Press Esc or click outside to close.
+              <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
+                Press Esc or click outside to close
               </p>
             </div>
           </motion.div>

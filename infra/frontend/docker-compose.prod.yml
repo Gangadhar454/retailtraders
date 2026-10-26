@@ -6,11 +6,11 @@ services:
       context: ../../frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://retailtraders.duckdns.org
+        NEXT_PUBLIC_API_URL: https://retailtraders.in
     restart: always
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://retailtraders.duckdns.org
+      - NEXT_PUBLIC_API_URL=https://retailtraders.in
     ports:
       - "127.0.0.1:3000:3000"
 

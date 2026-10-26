@@ -1,10 +1,10 @@
-# Production Nginx reverse proxy for retailtraders.duckdns.org
+# Production Nginx reverse proxy for retailtraders.in
 
-# Redirect plain HTTP (port 80) to HTTPS (port 443)
+# Plain HTTP (port 80)
 server {
     listen 80;
     listen [::]:80;
-    server_name retailtraders.duckdns.org _;
+    server_name retailtraders.in www.retailtraders.in _;
 
     # Allow Let's Encrypt ACME challenges
     location /.well-known/acme-challenge/ {
@@ -27,18 +27,18 @@ server {
     }
 
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://retailtraders.in$request_uri;
     }
 }
 
-# HTTPS server (port 443)
+# HTTPS server for retailtraders.in (Primary Site)
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name retailtraders.duckdns.org;
+    server_name retailtraders.in;
 
-    ssl_certificate /etc/letsencrypt/live/retailtraders.duckdns.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/retailtraders.duckdns.org/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/retailtraders.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/retailtraders.in/privkey.pem;
 
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:10m;
@@ -57,7 +57,7 @@ server {
 
     # Route 1: API requests -> Backend VM via OCI private network
     location /api/ {
-        proxy_pass http://__BACKEND_PRIVATE_IP__:8000/api/;
+        proxy_pass http://10.0.0.129:8000/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -80,4 +80,3 @@ server {
         proxy_set_header X-Forwarded-Proto https;
     }
 }
-

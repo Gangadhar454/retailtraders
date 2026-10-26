@@ -6,7 +6,6 @@ import { useCallback, useState } from "react";
 import { motion } from "motion/react";
 
 import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { CopyButton } from "@/components/CopyButton";
 import { ExportModal } from "@/components/ExportModal";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { UpiQr } from "@/components/UpiQr";
@@ -32,8 +31,6 @@ const PerformanceOrb = dynamic(() => import("@/components/three/PerformanceOrb")
     </div>
   ),
 });
-
-const TIP_PRESETS = [100, 500, 1000, 5000];
 
 function toneClass(tone: "profit" | "loss" | "flat" | "neutral"): string {
   if (tone === "profit") return "text-profit";
@@ -68,9 +65,6 @@ function StatCell({
 
 export function ProfileView({ username }: { username: string }) {
   const [exportOpen, setExportOpen] = useState(false);
-  const [tipAmount, setTipAmount] = useState(500);
-  const [customAmount, setCustomAmount] = useState("");
-  const [tipError, setTipError] = useState<string | null>(null);
 
   const load = useCallback(() => publicApi.profile(username), [username]);
   const { data, loading, error } = usePolling<UserProfile>(load, 15_000, true, username);
@@ -103,16 +97,9 @@ export function ProfileView({ username }: { username: string }) {
 
   const { user, stats, timeline, today, upi } = data;
   const tone = pnlTone(today?.net_pnl ?? stats.total_pnl);
-  const amount = customAmount ? Number(customAmount) : tipAmount;
 
-  async function sendTip() {
-    setTipError(null);
-    try {
-      const intent = await publicApi.tipIntent(username, amount || 0);
-      window.location.href = intent.intent_url;
-    } catch {
-      setTipError("Could not open the UPI app. Try scanning the QR instead.");
-    }
+  function scrollToTip() {
+    document.getElementById("tip-box")?.scrollIntoView({ behavior: "smooth" });
   }
 
   const seed = user.avatar_seed || user.username;
@@ -192,7 +179,7 @@ export function ProfileView({ username }: { username: string }) {
           </button>
 
           {upi.can_tip && (
-            <button type="button" onClick={sendTip} className="btn-base btn-primary">
+            <button type="button" onClick={scrollToTip} className="btn-base btn-primary">
               <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                 <path
                   d="M12 21s-7-4.6-7-10a7 7 0 1114 0c0 5.4-7 10-7 10z"
@@ -277,71 +264,18 @@ export function ProfileView({ username }: { username: string }) {
 
         <div className="space-y-4">
           {/* Tip box */}
-          <div className="card p-5">
+          <div id="tip-box" className="card p-5">
             <h2 className="text-[15px] font-semibold text-foreground">Send a tip</h2>
 
             {upi.can_tip && upi.upi_id ? (
-              <>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {TIP_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => {
-                        setTipAmount(preset);
-                        setCustomAmount("");
-                      }}
-                      className={`rounded border px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                        !customAmount && tipAmount === preset
-                          ? "border-brand bg-brand-soft text-brand"
-                          : "border-line-strong bg-surface text-ink-soft hover:bg-surface-alt hover:text-foreground"
-                      }`}
-                    >
-                      ₹{preset.toLocaleString("en-IN")}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    step="1"
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    placeholder="Custom amount"
-                    className="input-base numeric flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={sendTip}
-                    className="btn-base btn-primary px-4"
-                  >
-                    Pay
-                  </button>
-                </div>
-
-                {tipError && (
-                  <p className="mt-2 text-[12px] text-loss">{tipError}</p>
-                )}
-
-                <div className="mt-4">
-                  <UpiQr
-                    upiId={upi.upi_id}
-                    payeeName={upi.resolved_name}
-                    canTip={upi.can_tip}
-                    size={190}
-                  />
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-2 rounded border border-line bg-surface-alt px-3 py-2">
-                  <span className="numeric truncate text-[12px]">{upi.upi_id}</span>
-                  <CopyButton
-                    value={upi.upi_id}
-                    className="shrink-0 rounded border border-line-strong bg-surface px-2 py-1 text-[11px] text-ink-soft transition-colors hover:bg-surface-sunken hover:text-foreground"
-                  />
-                </div>
-              </>
+              <div className="mt-4">
+                <UpiQr
+                  upiId={upi.upi_id}
+                  payeeName={upi.resolved_name}
+                  canTip={upi.can_tip}
+                  size={200}
+                />
+              </div>
             ) : (
               <div className="mt-3 rounded border border-line bg-surface-alt px-4 py-6 text-center">
                 <p className="text-[13px] font-medium text-foreground">

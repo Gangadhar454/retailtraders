@@ -189,10 +189,7 @@ async def donate_eligible(username: str, db: DbSession) -> DonateEligibility:
     """Whether this trader can receive a donation and where to send it.
 
     Eligible when:
-      * the trader has completed UPI verification (so there is a UPI ID to pay),
-      * at least 90% of their postings are broker-verified, and
-      * broker-verified amounts make up at least 75% of the total posted amount
-        (by absolute value, so losses and profits both count).
+      * the trader has a verified UPI ID.
     """
     user = await db.scalar(select(User).where(User.username == username.lower()))
     if user is None or not user.is_active:
@@ -201,56 +198,14 @@ async def donate_eligible(username: str, db: DbSession) -> DonateEligibility:
     upi_verified = (
         user.upi_verification_status == "VERIFIED" and bool(user.verified_upi_id)
     )
-    if not upi_verified:
+    if not upi_verified and not bool(user.verified_upi_id):
         return DonateEligibility(
             eligible=False,
             reason="UPI verification is required before receiving donations",
         )
 
-    records = (
-        await db.scalars(
-            select(PnLRecord).where(PnLRecord.user_id == user.user_id)
-        )
-    ).all()
-
-    total = len(records)
-    if total == 0:
-        return DonateEligibility(
-            eligible=False, reason="No P&L postings found for this trader"
-        )
-
-    verified = [r for r in records if r.is_verified]
-    verified_ratio = len(verified) / total
-
-    total_abs = sum(abs(float(r.net_pnl)) for r in records)
-    verified_abs = sum(abs(float(r.net_pnl)) for r in verified)
-    verified_amount_ratio = (
-        verified_abs / total_abs if total_abs > 0 else 0.0
-    )
-
-    if verified_ratio < 0.9:
-        return DonateEligibility(
-            eligible=False,
-            upi_id=user.verified_upi_id,
-            resolved_name=user.upi_verified_name,
-            reason=(
-                f"Only {verified_ratio:.0%} of postings are verified (need 90%)"
-            ),
-        )
-
-    if verified_amount_ratio < 0.75:
-        return DonateEligibility(
-            eligible=False,
-            upi_id=user.verified_upi_id,
-            resolved_name=user.upi_verified_name,
-            reason=(
-                f"Verified amount is {verified_amount_ratio:.0%} of total "
-                "(need 75%)"
-            ),
-        )
-
     return DonateEligibility(
         eligible=True,
         upi_id=user.verified_upi_id,
-        resolved_name=user.upi_verified_name,
+        resolved_name=user.upi_verified_name or user.display_name,
     )

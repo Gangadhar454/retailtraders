@@ -47,13 +47,17 @@ const SORTS: { key: LeaderboardSort; label: string }[] = [
 const donateCache = new Map<string, DonateEligibility | null>();
 const donatePending = new Map<string, Promise<DonateEligibility>>();
 
-function useDonateEligibility(username: string) {
+function useDonateEligibility(username: string, enabled: boolean = true) {
   const [data, setData] = useState<DonateEligibility | null>(
     donateCache.get(username) ?? null,
   );
 
   useEffect(() => {
-    if (donateCache.has(username)) return;
+    if (!enabled) return;
+    if (donateCache.has(username)) {
+      setData(donateCache.get(username) ?? null);
+      return;
+    }
     if (donatePending.has(username)) return;
     const p = publicApi
       .donateEligibility(username)
@@ -75,7 +79,7 @@ function useDonateEligibility(username: string) {
         return fallback;
       });
     donatePending.set(username, p);
-  }, [username]);
+  }, [username, enabled]);
 
   return data;
 }
@@ -108,9 +112,11 @@ function LeaderboardRow({
 }) {
   const tone = pnlTone(entry.net_pnl);
   const seed = entry.user.avatar_seed || entry.user.username;
-  const eligible = useDonateEligibility(entry.user.username);
+  const isLossVerified =
+    mode !== "cumulative" && entry.is_verified && entry.net_pnl < 0;
+  const eligible = useDonateEligibility(entry.user.username, isLossVerified);
   const canDonate =
-    entry.net_pnl < 0 &&
+    isLossVerified &&
     Boolean(eligible?.eligible) &&
     Boolean(eligible?.upi_id);
 
@@ -166,8 +172,11 @@ function LeaderboardRow({
                     eligible?.resolved_name ?? null,
                   )
                 }
-                className="ml-2 rounded border border-brand bg-brand-soft px-2.5 py-1 text-[11px] font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
+                className="group ml-2 inline-flex items-center gap-1 rounded-full border border-rose-300 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 shadow-2xs transition-all hover:border-rose-500 hover:bg-rose-500 hover:text-white active:scale-95"
               >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3 shrink-0 text-rose-500 transition-colors group-hover:text-white">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
                 Donate
               </button>
             )}
