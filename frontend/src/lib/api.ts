@@ -213,6 +213,14 @@ export const authApi = {
     return tokens;
   },
 
+  async updateProfile(input: { display_name: string }): Promise<CurrentUser> {
+    return apiFetch<CurrentUser>("/api/v1/auth/me", {
+      method: "PATCH",
+      body: input,
+      auth: true,
+    });
+  },
+
   async me(): Promise<CurrentUser> {
     return apiFetch<CurrentUser>("/api/v1/auth/me", { auth: true });
   },
@@ -220,6 +228,17 @@ export const authApi = {
   /** Renews the access token ahead of expiry. Returns false if the session is over. */
   async refresh(): Promise<boolean> {
     return refreshAccessToken();
+  },
+
+  async changePassword(input: {
+    current_password: string;
+    new_password: string;
+  }): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/api/v1/auth/change-password", {
+      method: "POST",
+      body: input,
+      auth: true,
+    });
   },
 
   async logout(): Promise<void> {

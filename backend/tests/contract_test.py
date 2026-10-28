@@ -77,7 +77,7 @@ SENTIMENT_KEYS = {
 }
 LEADERBOARD_KEYS = {"rank", "user", "net_pnl", "is_verified", "broker_source", "trade_count", "record_date", "note"}
 STATS_KEYS = {
-    "total_records", "total_pnl", "best_day", "worst_day", "win_rate",
+    "total_records", "total_pnl", "verified_pnl", "verified_records", "best_day", "worst_day", "win_rate",
     "avg_trade_size", "max_drawdown", "volatility", "best_streak",
     "worst_streak", "consistency_score", "sharpe_like",
 }

@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -22,6 +23,11 @@ export default function RegisterPage() {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setBusy(false);
+      return;
+    }
     try {
       await register(email, password, displayName);
       router.push("/settings");
@@ -100,6 +106,26 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="input-base"
               placeholder="At least 8 characters, with a number"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="mb-1.5 block text-[12px] font-medium text-ink-soft"
+            >
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="input-base"
+              placeholder="Re-enter your password"
             />
           </div>
 

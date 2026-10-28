@@ -17,6 +17,8 @@ class PnLPoint:
 class PerformanceStats:
     total_records: int
     total_pnl: float
+    verified_pnl: float
+    verified_records: int
     best_day: float
     worst_day: float
     win_rate: float
@@ -34,6 +36,8 @@ def compute_stats(points: Sequence[PnLPoint]) -> PerformanceStats:
         return PerformanceStats(
             total_records=0,
             total_pnl=0.0,
+            verified_pnl=0.0,
+            verified_records=0,
             best_day=0.0,
             worst_day=0.0,
             win_rate=0.0,
@@ -50,6 +54,9 @@ def compute_stats(points: Sequence[PnLPoint]) -> PerformanceStats:
     pnls = [p.pnl for p in ordered]
 
     total = sum(pnls)
+    verified_pnls = [p.pnl for p in ordered if p.is_verified]
+    verified_pnl = sum(verified_pnls)
+    verified_records = len(verified_pnls)
     wins = [p for p in pnls if p > 0]
     losses = [p for p in pnls if p < 0]
 
@@ -70,20 +77,22 @@ def compute_stats(points: Sequence[PnLPoint]) -> PerformanceStats:
     dispersion = abs(volatility) / abs(mean) if mean else 0.0
     consistency = round(max(0.0, min(1.0, (win_rate / 100) * (1 / (1 + dispersion)))), 4)
 
-    # "Best/worst day" mean best/worst single-day P&L: for worst, if there
-    # are no losing days treat it as 0 (breakeven) rather than the smallest
-    # positive gain.
-    best_day_val = max(pnls) if pnls else 0.0
+    # "Best/worst day" mean best/worst single-day P&L: if no wins, best is 0. If no losses, worst is 0.
+
+
+    best_day_val = max(pnls) if wins else 0.0
     if losses:
         worst_day_val = min(pnls)
     else:
         worst_day_val = 0.0
-    if wins and not losses:
-        best_day_val = max(pnls)
+
+
 
     return PerformanceStats(
         total_records=len(pnls),
         total_pnl=round(total, 2),
+        verified_pnl=round(verified_pnl, 2),
+        verified_records=verified_records,
         best_day=round(best_day_val, 2),
         worst_day=round(worst_day_val, 2),
         win_rate=win_rate,

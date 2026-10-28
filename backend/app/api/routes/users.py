@@ -104,6 +104,8 @@ async def get_profile(
         stats=ProfileStats(
             total_records=stats.total_records,
             total_pnl=stats.total_pnl,
+            verified_pnl=stats.verified_pnl,
+            verified_records=stats.verified_records,
             best_day=stats.best_day,
             worst_day=stats.worst_day,
             win_rate=stats.win_rate,

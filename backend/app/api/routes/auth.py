@@ -20,10 +20,12 @@ from app.core.security import (
 )
 from app.models import LinkedBroker, User
 from app.schemas import (
+    ChangePasswordRequest,
     CurrentUser as CurrentUserSchema,
     LinkedBrokerOut,
     RefreshRequest,
     TokenPair,
+    UpdateProfileRequest,
     UserLoginRequest,
     UserRegisterRequest,
 )
@@ -169,3 +171,37 @@ async def refresh(payload: RefreshRequest, db: DbSession) -> TokenPair:
 @router.get("/me", response_model=CurrentUserSchema)
 async def me(user: CurrentUser) -> CurrentUserSchema:
     return _public_user(user)  # type: ignore[return-value]
+
+
+@router.patch("/me", response_model=CurrentUserSchema)
+async def update_profile(
+    payload: UpdateProfileRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> CurrentUserSchema:
+    current_user.display_name = payload.display_name.strip()
+    await db.commit()
+    await db.refresh(current_user)
+    return _public_user(current_user)  # type: ignore[return-value]
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict[str, str]:
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password cannot be the same as current password",
+        )
+
+    current_user.password_hash = hash_password(payload.new_password)
+    await db.commit()
+    return {"message": "Password changed successfully"}

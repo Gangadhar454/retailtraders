@@ -48,6 +48,32 @@ class UserRegisterRequest(BaseModel):
         return value
 
 
+class UpdateProfileRequest(BaseModel):
+    display_name: str = Field(min_length=2, max_length=64)
+
+    @field_validator("display_name")
+    @classmethod
+    def _clean_name(cls, value: str) -> str:
+        clean = value.strip()
+        if len(clean) < 2:
+            raise ValueError("Display name must be at least 2 characters")
+        return clean
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _password_strength(cls, value: str) -> str:
+        if not any(c.isalpha() for c in value):
+            raise ValueError("Password must contain at least one letter")
+        if not any(c.isdigit() for c in value):
+            raise ValueError("Password must contain at least one number")
+        return value
+
+
 class UserLoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -301,6 +327,8 @@ class PerformancePoint(BaseModel):
 class ProfileStats(BaseModel):
     total_records: int
     total_pnl: float
+    verified_pnl: float = 0.0
+    verified_records: int = 0
     best_day: float
     worst_day: float
     win_rate: float

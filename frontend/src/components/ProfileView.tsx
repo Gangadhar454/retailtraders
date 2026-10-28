@@ -44,17 +44,22 @@ function StatCell({
   value,
   tone = "neutral",
   hint,
+  badge,
 }: {
   label: string;
   value: string;
   tone?: "neutral" | "profit" | "loss" | "flat";
   hint?: string;
+  badge?: React.ReactNode;
 }) {
   return (
     <div className="bg-surface px-4 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-        {label}
-      </p>
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+          {label}
+        </p>
+        {badge}
+      </div>
       <p className={`numeric mt-1 text-[15px] font-semibold ${toneClass(tone)}`}>
         {value}
       </p>
@@ -205,25 +210,32 @@ export function ProfileView({ username }: { username: string }) {
             hint={`${stats.total_records} sessions`}
           />
           <StatCell
+            label="Verified P&L"
+            value={formatSignedINR(stats.verified_pnl ?? 0)}
+            tone={pnlTone(stats.verified_pnl ?? 0)}
+            hint={`${stats.verified_records ?? 0} verified`}
+            badge={
+              <span className="inline-flex items-center rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                Broker
+              </span>
+            }
+          />
+          <StatCell
             label="Best day"
             value={formatINR(stats.best_day)}
-            tone="profit"
+            tone={stats.best_day > 0 ? "profit" : "neutral"}
           />
           <StatCell
             label="Worst day"
             value={formatINR(stats.worst_day)}
-            tone="loss"
+            tone={stats.worst_day < 0 ? "loss" : "neutral"}
           />
           <StatCell
             label="Win rate"
             value={formatPercent(stats.win_rate)}
             hint={`streak ${stats.best_streak}W / ${stats.worst_streak}L`}
           />
-          <StatCell
-            label="Max drawdown"
-            value={formatINR(stats.max_drawdown)}
-            tone="loss"
-          />
+
           <StatCell
             label="Volatility"
             value={formatINR(stats.volatility)}

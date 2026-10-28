@@ -167,6 +167,8 @@ export interface UpiIntent {
 export interface ProfileStats {
   total_records: number;
   total_pnl: number;
+  verified_pnl: number;
+  verified_records?: number;
   best_day: number;
   worst_day: number;
   win_rate: number;
