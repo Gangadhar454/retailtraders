@@ -52,6 +52,7 @@ async def _prune_empty_day(db: DbSession, user: User, target: date) -> None:
         .where(
             BrokerPnLDaily.user_id == user.user_id,
             BrokerPnLDaily.date == target,
+            BrokerPnLDaily.net_pnl != 0,
         )
     )
     record = await db.scalar(
@@ -59,7 +60,10 @@ async def _prune_empty_day(db: DbSession, user: User, target: date) -> None:
             PnLRecord.user_id == user.user_id, PnLRecord.date == target
         )
     )
-    if record is not None and not broker_count and not record.has_manual_entry:
+    if record is not None and (
+        (not broker_count and not record.has_manual_entry)
+        or (record.net_pnl == 0 and not record.has_manual_entry)
+    ):
         await db.delete(record)
 
 
@@ -366,7 +370,7 @@ async def feed(
         select(PnLRecord)
         .join(PnLRecord.user)
         .options(selectinload(PnLRecord.user))
-        .where(PnLRecord.date == target)
+        .where(PnLRecord.date == target, PnLRecord.net_pnl != 0)
     )
     if verified_only:
         query = query.where(PnLRecord.is_verified.is_(True))

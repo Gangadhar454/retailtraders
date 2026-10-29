@@ -118,7 +118,7 @@ def _client_for(link: LinkedBroker) -> BrokerClient:
 
 async def _recalculate_daily_record(
     db: AsyncSession, user: User, target: date
-) -> PnLRecord:
+) -> PnLRecord | None:
     """Recompute the daily PnLRecord from all broker fetches + manual entry.
 
     net_pnl   = sum of all broker PnLs for the day + manual_net_pnl
@@ -129,6 +129,7 @@ async def _recalculate_daily_record(
             select(BrokerPnLDaily).where(
                 BrokerPnLDaily.user_id == user.user_id,
                 BrokerPnLDaily.date == target,
+                BrokerPnLDaily.net_pnl != 0,
             )
         )
     ).all()
@@ -148,6 +149,15 @@ async def _recalculate_daily_record(
     net_pnl = round(total_broker_pnl + manual_pnl, 2)
     has_broker_fetch = len(broker_rows) > 0
     has_manual = bool(record and record.has_manual_entry) if record else False
+
+    # If there are no active broker fetches and no manual entry, or if net_pnl is 0 without manual entry,
+    # remove any existing daily record so 0 is never posted.
+    if (not has_broker_fetch and not has_manual) or (net_pnl == 0.0 and not has_manual):
+        if record is not None:
+            await db.delete(record)
+            await db.flush()
+        return None
+
     trade_count = total_trades + (manual_trades if has_manual else 0)
 
     # is_verified only when there is at least one broker fetch and no manual entry
@@ -260,6 +270,39 @@ async def sync_user_broker(
 
     broker_fetched_pnl = round(snapshot.realized_pnl, 2)
     broker_label = link.broker_name.value
+
+    # Do not publish or store zero P&L (e.g. trades still active in unrealised profit/loss).
+    if broker_fetched_pnl == 0.0:
+        # If an existing broker row with 0 was saved previously, remove it
+        old_zero = await db.scalar(
+            select(BrokerPnLDaily).where(
+                BrokerPnLDaily.user_id == user.user_id,
+                BrokerPnLDaily.date == target,
+                BrokerPnLDaily.broker_name == broker_enum,
+            )
+        )
+        if old_zero is not None and old_zero.net_pnl == 0:
+            await db.delete(old_zero)
+            await db.flush()
+            await _recalculate_daily_record(db, user, target)
+
+        link.last_synced_at = datetime.now(timezone.utc)
+        await db.flush()
+
+        unrealized = round(snapshot.unrealized_pnl, 2)
+        if unrealized != 0.0:
+            sign = "+" if unrealized > 0 else "-"
+            formatted = f"{sign}₹{abs(unrealized):,.2f}"
+            raise BrokerError(
+                f"Your {broker_label} positions are currently open with unrealised P&L "
+                f"({formatted}). There is no realised P&L to post yet while trades are active.",
+                status_code=400,
+            )
+        raise BrokerError(
+            f"No realised P&L to publish from {broker_label} yet (realised P&L is ₹0.00). "
+            "Only completed trades with realised P&L can be published.",
+            status_code=400,
+        )
 
     # Upsert this broker's daily P&L
     broker_row = await db.scalar(
@@ -387,7 +430,8 @@ async def backfill_user_history(
         await db.flush()
 
         record = await _recalculate_daily_record(db, link.user, trade_date)
-        records.append(record)
+        if record is not None:
+            records.append(record)
 
     return records
 

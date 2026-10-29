@@ -41,9 +41,13 @@ async def sentiment(db: DbSession, day: date | None = Query(default=None)) -> Se
     target = day or calendar_day_for()
     # Lifetime community total — every published day, including dates
     # before the static "since Oct 25" label.
-    since_launch_total = await db.scalar(select(func.sum(PnLRecord.net_pnl)))
+    since_launch_total = await db.scalar(
+        select(func.sum(PnLRecord.net_pnl)).where(PnLRecord.net_pnl != 0)
+    )
     since_launch_verified_total = await db.scalar(
-        select(func.sum(PnLRecord.net_pnl)).where(PnLRecord.is_verified.is_(True))
+        select(func.sum(PnLRecord.net_pnl)).where(
+            PnLRecord.is_verified.is_(True), PnLRecord.net_pnl != 0
+        )
     )
 
     rows = (
@@ -55,7 +59,7 @@ async def sentiment(db: DbSession, day: date | None = Query(default=None)) -> Se
                 func.min(PnLRecord.net_pnl),
                 func.max(PnLRecord.net_pnl),
             )
-            .where(PnLRecord.date == target)
+            .where(PnLRecord.date == target, PnLRecord.net_pnl != 0)
             .group_by(PnLRecord.is_verified)
         )
     ).all()
@@ -134,6 +138,7 @@ async def leaderboard(
                 func.max(PnLRecord.date).label("latest_date"),
                 func.max(case((PnLRecord.is_verified.is_(True), 1), else_=0)).label("has_verified"),
             )
+            .where(PnLRecord.net_pnl != 0)
             .group_by(PnLRecord.user_id)
             .subquery()
         )
@@ -228,7 +233,7 @@ async def leaderboard(
         select(PnLRecord)
         .join(PnLRecord.user)
         .options(selectinload(PnLRecord.user).selectinload(User.linked_brokers))
-        .where(PnLRecord.date == target)
+        .where(PnLRecord.date == target, PnLRecord.net_pnl != 0)
     )
     if verified_only is not None:
         query = query.where(PnLRecord.is_verified.is_(verified_only))
