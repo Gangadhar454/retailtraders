@@ -46,14 +46,71 @@
   }
 }
 
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 35s) linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
 :root {
   --background: var(--color-canvas);
   --foreground: var(--color-foreground);
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
 html {
   color-scheme: light;
   scroll-behavior: smooth;
+}
+
+html.dark,
+.dark {
+  color-scheme: dark;
+
+  /* --- Surfaces: Deep obsidian slate, layered by hairline not by glow ------ */
+  --color-canvas: #0b0e14;
+  --color-surface: #121722;
+  --color-surface-alt: #18202e;
+  --color-surface-sunken: #0f141d;
+
+  /* --- Ink: High-contrast legible slate ----------------------------------- */
+  --color-foreground: #f1f5f9;
+  --color-ink-soft: #94a3b8;
+  --color-muted: #64748b;
+
+  /* --- Hairlines ---------------------------------------------------------- */
+  --color-line: #1e293b;
+  --color-line-strong: #2e3e56;
+
+  /* --- Brand: Zerodha blue calibrated for dark backgrounds ---------------- */
+  --color-brand: #4b90e2;
+  --color-brand-dark: #3b7ed1;
+  --color-brand-soft: #142338;
+
+  /* --- Semantics: High readability numbers -------------------------------- */
+  --color-profit: #22c55e;
+  --color-profit-soft: #0d281a;
+  --color-loss: #f43f5e;
+  --color-loss-soft: #2a1218;
+  --color-amber: #f59e0b;
+  --color-amber-soft: #281b0a;
+  --color-signal: #4b90e2;
+
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
 body {
@@ -72,6 +129,12 @@ body {
   color: #1e242b;
 }
 
+html.dark ::selection,
+.dark ::selection {
+  background: #1e3a5f;
+  color: #f1f5f9;
+}
+
 /* --------------------------------------------------------------------------
    Surfaces
    -------------------------------------------------------------------------- */
@@ -81,7 +144,7 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: 0.5rem;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  box-shadow: var(--card-shadow);
 }
 
 /* Recessed panel: for secondary blocks that should not compete with cards. */
@@ -142,7 +205,7 @@ body {
   white-space: nowrap;
 
   &:active:not(:disabled) {
-    background-color: #eef1f4;
+    background-color: var(--color-surface-sunken);
   }
 
   &:disabled {
@@ -180,7 +243,7 @@ body {
 
   &:hover:not(:disabled) {
     background-color: var(--color-surface-alt);
-    border-color: #c3c9d0;
+    border-color: var(--color-line-strong);
   }
 }
 
@@ -299,6 +362,21 @@ body {
 
 *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+html.dark *,
+.dark * {
+  scrollbar-color: #2e3e56 transparent;
+}
+
+html.dark *::-webkit-scrollbar-thumb,
+.dark *::-webkit-scrollbar-thumb {
+  background: #2e3e56;
+}
+
+html.dark *::-webkit-scrollbar-thumb:hover,
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 @media (prefers-reduced-motion: reduce) {

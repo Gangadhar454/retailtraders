@@ -102,6 +102,8 @@ export function ProfileView({ username }: { username: string }) {
 
   const { user, stats, timeline, today, upi } = data;
   const tone = pnlTone(today?.net_pnl ?? stats.total_pnl);
+  const winDays = stats.win_days ?? timeline.filter((p) => p.net_pnl > 0).length;
+  const lossDays = stats.loss_days ?? timeline.filter((p) => p.net_pnl < 0).length;
 
   function scrollToTip() {
     document.getElementById("tip-box")?.scrollIntoView({ behavior: "smooth" });
@@ -202,7 +204,7 @@ export function ProfileView({ username }: { username: string }) {
 
       {/* Stats ----------------------------------------------------------- */}
       <section className="card mt-4 overflow-hidden">
-        <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3 lg:grid-cols-5">
           <StatCell
             label="Total P&L"
             value={formatSignedINR(stats.total_pnl)}
@@ -233,13 +235,7 @@ export function ProfileView({ username }: { username: string }) {
           <StatCell
             label="Win rate"
             value={formatPercent(stats.win_rate)}
-            hint={`streak ${stats.best_streak}W / ${stats.worst_streak}L`}
-          />
-
-          <StatCell
-            label="Volatility"
-            value={formatINR(stats.volatility)}
-            hint={`σ daily · ${formatPercent(stats.consistency_score * 100, 0)} consistent`}
+            hint={`${winDays} ${winDays === 1 ? "win" : "wins"} · ${lossDays} ${lossDays === 1 ? "loss" : "losses"}`}
           />
         </div>
       </section>

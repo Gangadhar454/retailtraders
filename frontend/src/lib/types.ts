@@ -179,6 +179,8 @@ export interface ProfileStats {
   worst_streak: number;
   consistency_score: number;
   sharpe_like: number;
+  win_days?: number;
+  loss_days?: number;
 }
 
 export interface PerformancePoint {

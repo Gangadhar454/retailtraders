@@ -25,14 +25,20 @@ const FALLBACK_BROKERS: BrokerOption[] = [
   {
     key: "zerodha",
     name: "Zerodha",
-    status: "available",
-    detail: "Log in with Zerodha and read today's realised P&L from your positions.",
+    status: "coming_soon",
+    detail: "Broker-side P&L import is on the way.",
+  },
+  {
+    key: "groww",
+    name: "Groww",
+    status: "coming_soon",
+    detail: "Broker-side P&L import is on the way.",
   },
   {
     key: "angel_one",
     name: "Angel One",
     status: "available",
-    detail: "Log in with Angel One and read today's realised P&L from your positions.",
+    detail: "Connect with Angel One Publisher Login and fetch today's realised P&L.",
   },
 ];
 

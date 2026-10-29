@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, date, timezone
 
 from fastapi import APIRouter, Query
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession
@@ -136,16 +136,24 @@ async def leaderboard(
                 func.sum(PnLRecord.trade_count).label("cumulative_trades"),
                 func.count(PnLRecord.record_id).label("session_count"),
                 func.max(PnLRecord.date).label("latest_date"),
-                func.max(case((PnLRecord.is_verified.is_(True), 1), else_=0)).label("has_verified"),
+                func.sum(case((PnLRecord.is_verified.is_(True), 1), else_=0)).label("verified_session_count"),
+                func.sum(func.abs(PnLRecord.net_pnl)).label("total_abs_pnl"),
+                func.sum(case((PnLRecord.is_verified.is_(True), func.abs(PnLRecord.net_pnl)), else_=0.0)).label("verified_abs_pnl"),
             )
             .where(PnLRecord.net_pnl != 0)
             .group_by(PnLRecord.user_id)
             .subquery()
         )
 
-        is_verified_cond = or_(
-            subq.c.has_verified == 1,
-            User.linked_brokers.any(LinkedBroker.is_active.is_(True)),
+        is_verified_cond = and_(
+            subq.c.session_count > 0,
+            (subq.c.verified_session_count * 1.0 / subq.c.session_count) >= 0.80,
+            (
+                subq.c.verified_abs_pnl
+                * 1.0
+                / case((subq.c.total_abs_pnl == 0, 1.0), else_=subq.c.total_abs_pnl)
+            )
+            >= 0.80,
         )
 
         filters = [User.is_active.is_(True)]
@@ -163,7 +171,10 @@ async def leaderboard(
                 subq.c.cumulative_pnl,
                 subq.c.cumulative_trades,
                 subq.c.latest_date,
-                subq.c.has_verified,
+                subq.c.session_count,
+                subq.c.verified_session_count,
+                subq.c.total_abs_pnl,
+                subq.c.verified_abs_pnl,
             )
             .join(subq, User.user_id == subq.c.user_id)
             .options(selectinload(User.linked_brokers))
@@ -200,9 +211,19 @@ async def leaderboard(
                     broker_sources_by_user[r.user_id] = r.broker_source
 
         entries = []
-        for index, (u, cum_pnl, cum_trades, latest_date, has_v) in enumerate(rows):
+        for index, (u, cum_pnl, cum_trades, latest_date, s_count, v_count, t_abs, v_abs) in enumerate(rows):
             active_brokers = [b.broker_name.value for b in u.linked_brokers if b.is_active]
-            is_entry_verified = bool(active_brokers or has_v)
+
+            s_count_val = int(s_count or 0)
+            v_count_val = int(v_count or 0)
+            t_abs_val = float(t_abs or 0.0)
+            v_abs_val = float(v_abs or 0.0)
+
+            session_ratio = (v_count_val / s_count_val) if s_count_val > 0 else 0.0
+            amount_ratio = (v_abs_val / t_abs_val) if t_abs_val > 0 else 0.0
+
+            is_entry_verified = (session_ratio >= 0.80) and (amount_ratio >= 0.80)
+
             broker_src = (
                 ", ".join(active_brokers)
                 if active_brokers
@@ -216,7 +237,7 @@ async def leaderboard(
                     net_pnl=val,
                     total_pnl=val,
                     is_verified=is_entry_verified,
-                    broker_source=broker_src,
+                    broker_source=broker_src if is_entry_verified else None,
                     trade_count=int(cum_trades or 0),
                     record_date=latest_date,
                     note=notes_by_user.get(u.user_id),
@@ -281,6 +302,7 @@ async def leaderboard(
         .join(PnLRecord.user)
         .where(
             PnLRecord.date == target,
+            PnLRecord.net_pnl != 0,
             *(
                 [PnLRecord.is_verified.is_(verified_only)]
                 if verified_only is not None

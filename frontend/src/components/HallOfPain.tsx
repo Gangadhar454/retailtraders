@@ -172,9 +172,9 @@ function LeaderboardRow({
                     eligible?.resolved_name ?? null,
                   )
                 }
-                className="group ml-2 inline-flex items-center gap-1 rounded-full border border-rose-300 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 shadow-2xs transition-all hover:border-rose-500 hover:bg-rose-500 hover:text-white active:scale-95"
+                className="group ml-2 inline-flex items-center gap-1 rounded-full border border-loss/30 bg-loss-soft px-2.5 py-0.5 text-[11px] font-semibold text-loss shadow-2xs transition-all hover:border-loss hover:bg-loss hover:text-white active:scale-95"
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3 shrink-0 text-rose-500 transition-colors group-hover:text-white">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3 shrink-0 text-loss transition-colors group-hover:text-white">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                 </svg>
                 Donate
@@ -295,6 +295,7 @@ export function HallOfPain({
   } | null>(null);
   const [tick, setTick] = useState(0);
   const loadMoreTarget = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const update = () => setTick(Date.now());
@@ -308,6 +309,7 @@ export function HallOfPain({
 
   useEffect(() => {
     const target = loadMoreTarget.current;
+    const rootContainer = scrollContainerRef.current;
     if (
       !target ||
       !hasMore ||
@@ -323,7 +325,10 @@ export function HallOfPain({
       (observed) => {
         if (observed.some((entry) => entry.isIntersecting)) onLoadMore();
       },
-      { rootMargin: "500px 0px" },
+      {
+        root: rootContainer,
+        rootMargin: "300px 0px",
+      },
     );
     observer.observe(target);
     return () => observer.disconnect();
@@ -398,23 +403,26 @@ export function HallOfPain({
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="hidden grid-cols-[2.5rem_1fr_5rem_8rem] gap-4 border-b border-line bg-surface-alt px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted sm:grid">
+      <div className="card flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-10 hidden grid-cols-[2.5rem_1fr_5rem_8rem] gap-4 border-b border-line bg-surface-alt px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted sm:grid">
           <span>#</span>
           <span>Trader</span>
           <span className="text-right">Trades</span>
           <span className="text-right">{mode === "cumulative" ? "Total P&L" : "Net P&L"}</span>
         </div>
 
-        {loading && entries.length === 0 ? (
-          <div className="divide-y divide-line">
-            <SkeletonRow />
-            <SkeletonRow />
-            <SkeletonRow />
-            <SkeletonRow />
-          </div>
-        ) : (
-          <div className="divide-y divide-line">
+        <div
+          ref={scrollContainerRef}
+          className="max-h-[580px] overflow-y-auto overscroll-contain divide-y divide-line [scrollbar-width:thin]"
+        >
+          {loading && entries.length === 0 ? (
+            <div className="divide-y divide-line">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : (
             <AnimatePresence initial={false}>
               {entries.map((entry) => (
                 <LeaderboardRow
@@ -425,42 +433,58 @@ export function HallOfPain({
                 />
               ))}
             </AnimatePresence>
-          </div>
-        )}
+          )}
 
-        {hasMore && (
-          <div
-            ref={loadMoreTarget}
-            className="flex min-h-14 items-center justify-center border-t border-line px-4 py-3"
-          >
-            {loadingMore ? (
-              <span className="text-[12px] text-muted">Loading more traders...</span>
-            ) : loadMoreError ? (
-              <button
-                type="button"
-                onClick={onLoadMore}
-                className="text-[12px] font-semibold text-brand hover:underline"
-              >
-                {loadMoreError} Retry
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onLoadMore}
-                className="text-[12px] font-semibold text-brand hover:underline"
-              >
-                Load more traders
-              </button>
-            )}
-          </div>
-        )}
+          {hasMore && (
+            <div
+              ref={loadMoreTarget}
+              className="flex min-h-14 items-center justify-center border-t border-line px-4 py-3"
+            >
+              {loadingMore ? (
+                <span className="text-[12px] text-muted">Loading more traders...</span>
+              ) : loadMoreError ? (
+                <button
+                  type="button"
+                  onClick={onLoadMore}
+                  className="text-[12px] font-semibold text-brand hover:underline"
+                >
+                  {loadMoreError} Retry
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onLoadMore}
+                  className="text-[12px] font-semibold text-brand hover:underline"
+                >
+                  Load more traders
+                </button>
+              )}
+            </div>
+          )}
 
-        {!loading && entries.length === 0 && (
-          <div className="px-6 py-14 text-center">
-            <p className="text-[13px] text-ink-soft">{resolvedEmptyHint}</p>
-            <Link href="/publish" className="btn-base btn-primary mt-4">
-              Publish your P&amp;L
-            </Link>
+          {!loading && entries.length === 0 && (
+            <div className="px-6 py-14 text-center">
+              <p className="text-[13px] text-ink-soft">{resolvedEmptyHint}</p>
+              <Link href="/publish" className="btn-base btn-primary mt-4">
+                Publish your P&amp;L
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {entries.length > 0 && (
+          <div className="flex items-center justify-between border-t border-line bg-surface-alt/80 px-4 py-2 text-[11.5px] text-muted">
+            <span>
+              Showing <strong className="font-semibold text-ink-soft">{entries.length}</strong> of{" "}
+              <strong className="font-semibold text-ink-soft">{total}</strong> traders
+            </span>
+            <button
+              type="button"
+              onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+              className="transition-colors hover:text-foreground"
+            >
+              Back to top &uarr;
+            </button>
           </div>
         )}
       </div>

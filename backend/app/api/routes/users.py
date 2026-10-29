@@ -66,7 +66,7 @@ async def get_profile(
     records = (
         await db.scalars(
             select(PnLRecord)
-            .where(PnLRecord.user_id == user.user_id)
+            .where(PnLRecord.user_id == user.user_id, PnLRecord.net_pnl != 0)
             .order_by(PnLRecord.date.asc())
             .limit(limit)
         )
@@ -116,6 +116,8 @@ async def get_profile(
             worst_streak=stats.worst_streak,
             consistency_score=stats.consistency_score,
             sharpe_like=stats.sharpe_like,
+            win_days=stats.win_days,
+            loss_days=stats.loss_days,
         ),
         timeline=timeline,
         today=today,

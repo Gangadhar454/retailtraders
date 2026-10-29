@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, motion } from "motion/react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { publicApi } from "@/lib/api";
 import { formatRelative, formatSignedINR } from "@/lib/format";
 import { usePolling } from "@/lib/hooks";
-import type { FeedResponse } from "@/lib/types";
+import type { FeedEntry, FeedResponse } from "@/lib/types";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -16,10 +15,46 @@ function initials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
+function TapeChip({
+  entry,
+  ariaHidden,
+}: {
+  entry: FeedEntry;
+  ariaHidden?: boolean;
+}) {
+  return (
+    <Link
+      href={`/u/${entry.user.username}`}
+      tabIndex={ariaHidden ? -1 : undefined}
+      aria-hidden={ariaHidden}
+      className="row-hover flex shrink-0 items-center gap-2 rounded border border-line bg-surface px-2.5 py-1.5 shadow-2xs transition-colors hover:border-brand/40 hover:bg-brand-soft/40"
+    >
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-brand-soft text-[9px] font-bold text-brand">
+        {initials(entry.user.display_name)}
+      </span>
+      <span className="min-w-0">
+        <span className="block max-w-[7.5rem] truncate text-[12px] font-semibold text-foreground">
+          {entry.user.display_name}
+        </span>
+        <span className="block text-[10.5px] text-muted">
+          {formatRelative(entry.record.created_at)}
+        </span>
+      </span>
+      <span
+        className={`numeric text-[12px] font-semibold ${
+          entry.record.net_pnl < 0 ? "text-loss" : "text-profit"
+        }`}
+      >
+        {formatSignedINR(entry.record.net_pnl)}
+      </span>
+    </Link>
+  );
+}
+
 /**
- * A live strip of the most recent publishes. It re-polls quickly and animates
- * new entries in, so the page reads as an ongoing stream rather than a static
- * snapshot. Nothing is fabricated: every chip is a real publish from the feed.
+ * A continuous live marquee ticker for the most recent publishes.
+ * Glides smoothly from right to left in a seamless infinite loop,
+ * pauses on hover so traders can easily read and click any card.
  */
 export function LiveTape() {
   const load = useCallback(() => publicApi.feed({ sort: "recent" }), []);
@@ -28,7 +63,23 @@ export function LiveTape() {
     10_000,
   );
 
-  const entries = (data?.entries ?? []).slice(0, 8);
+  const rawEntries = useMemo(
+    () => (data?.entries ?? []).slice(0, 20),
+    [data?.entries],
+  );
+
+  // Ensure enough items so the marquee seamlessly spans across wide screens
+  const displayItems = useMemo(() => {
+    if (rawEntries.length === 0) return [];
+    let items = rawEntries;
+    while (items.length < 8) {
+      items = [...items, ...rawEntries];
+    }
+    return items;
+  }, [rawEntries]);
+
+  // Speed calibrated to ~3.5 seconds per chip for easy readability
+  const durationSec = Math.max(28, displayItems.length * 3.5);
 
   return (
     <section className="card px-4 py-3">
@@ -53,55 +104,47 @@ export function LiveTape() {
         </span>
       </div>
 
-      <div className="mt-2.5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-        {loading && entries.length === 0 ? (
-          <>
+      <div className="relative mt-2.5 overflow-hidden">
+        {/* Soft edge gradient fades */}
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-surface to-transparent sm:w-12" />
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-surface to-transparent sm:w-12" />
+
+        {loading && displayItems.length === 0 ? (
+          <div className="flex gap-2 py-0.5">
             <div className="h-10 w-40 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
             <div className="h-10 w-44 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
             <div className="h-10 w-36 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
-          </>
-        ) : entries.length === 0 ? (
+            <div className="h-10 w-40 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
+          </div>
+        ) : displayItems.length === 0 ? (
           <p className="py-1 text-[12px] text-muted">
             Waiting for the first publish of the session…
           </p>
         ) : (
-          <AnimatePresence initial={false} mode="popLayout">
-            {entries.map((entry) => (
-              <motion.div
-                key={entry.record.record_id}
-                layout
-                initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="shrink-0"
-              >
-                <Link
-                  href={`/u/${entry.user.username}`}
-                  className="row-hover flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1.5 transition-colors hover:border-brand/30 hover:bg-brand-soft/40"
-                >
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-brand-soft text-[9px] font-bold text-brand">
-                    {initials(entry.user.display_name)}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block max-w-[7.5rem] truncate text-[12px] font-semibold text-foreground">
-                      {entry.user.display_name}
-                    </span>
-                    <span className="block text-[10.5px] text-muted">
-                      {formatRelative(entry.record.created_at)}
-                    </span>
-                  </span>
-                  <span
-                    className={`numeric text-[12px] font-semibold ${
-                      entry.record.net_pnl < 0 ? "text-loss" : "text-profit"
-                    }`}
-                  >
-                    {formatSignedINR(entry.record.net_pnl)}
-                  </span>
-                </Link>
-              </motion.div>
+          <div
+            className="animate-marquee flex gap-2 py-0.5"
+            style={
+              {
+                "--marquee-duration": `${durationSec}s`,
+              } as React.CSSProperties
+            }
+          >
+            {/* Primary Track */}
+            {displayItems.map((entry, idx) => (
+              <TapeChip
+                key={`track1-${entry.record.record_id}-${idx}`}
+                entry={entry}
+              />
             ))}
-          </AnimatePresence>
+            {/* Duplicate Track for seamless infinite loop */}
+            {displayItems.map((entry, idx) => (
+              <TapeChip
+                key={`track2-${entry.record.record_id}-${idx}`}
+                entry={entry}
+                ariaHidden
+              />
+            ))}
+          </div>
         )}
       </div>
     </section>

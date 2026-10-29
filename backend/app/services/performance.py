@@ -29,6 +29,8 @@ class PerformanceStats:
     worst_streak: int
     consistency_score: float
     sharpe_like: float
+    win_days: int = 0
+    loss_days: int = 0
 
 
 def compute_stats(points: Sequence[PnLPoint]) -> PerformanceStats:
@@ -48,6 +50,8 @@ def compute_stats(points: Sequence[PnLPoint]) -> PerformanceStats:
             worst_streak=0,
             consistency_score=0.0,
             sharpe_like=0.0,
+            win_days=0,
+            loss_days=0,
         )
 
     ordered = sorted(points, key=lambda p: p.day)
@@ -103,6 +107,8 @@ def compute_stats(points: Sequence[PnLPoint]) -> PerformanceStats:
         worst_streak=worst_streak,
         consistency_score=consistency,
         sharpe_like=sharpe_like,
+        win_days=len(wins),
+        loss_days=len(losses),
     )
 
 
@@ -110,12 +116,15 @@ def _streaks(pnls: Sequence[float]) -> tuple[int, int, int]:
     best = worst = 0
     best_run = worst_run = 0
     for pnl in pnls:
-        if pnl >= 0:
+        if pnl > 0:
             best_run += 1
             worst_run = 0
-        else:
+        elif pnl < 0:
             worst_run += 1
             best_run = 0
+        else:
+            best_run = 0
+            worst_run = 0
         best = max(best, best_run)
         worst = max(worst, worst_run)
     return best, worst, best_run

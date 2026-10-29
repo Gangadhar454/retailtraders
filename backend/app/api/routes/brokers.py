@@ -49,8 +49,8 @@ def _broker_catalogue() -> list[BrokerOptionOut]:
         BrokerOptionOut(
             key="zerodha",
             name="Zerodha",
-            status="available",
-            detail="Log in with Zerodha and read today's realised P&L from your positions.",
+            status="coming_soon",
+            detail="Broker-side P&L import is on the way.",
         ),
         BrokerOptionOut(
             key="groww",

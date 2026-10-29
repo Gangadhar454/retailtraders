@@ -6,6 +6,8 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { HowItWorksModal } from "@/components/HowItWorksModal";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { avatarInk, avatarTint, initials } from "@/lib/format";
 
 const LINKS = [
@@ -18,6 +20,7 @@ export function Nav() {
   const pathname = usePathname();
   const { user, isAuthenticated, loading, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -71,7 +74,21 @@ export function Nav() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="ml-auto flex items-center gap-2">
+          {/* Theme toggle */}
+          <ThemeToggle />
+
+          {/* Help / How it works button */}
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            title="How it works"
+            aria-label="How it works"
+            className="grid h-7 w-7 place-items-center rounded-full border border-line bg-surface text-[12px] font-bold text-ink-soft transition-all hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
+          >
+            ?
+          </button>
+
           {loading ? (
             <div className="h-8 w-24 animate-pulse rounded bg-surface-sunken" />
           ) : isAuthenticated && user ? (
@@ -168,6 +185,8 @@ export function Nav() {
           </motion.nav>
         )}
       </AnimatePresence>
+
+      <HowItWorksModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </header>
   );
 }

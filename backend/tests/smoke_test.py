@@ -150,11 +150,11 @@ def main() -> int:
 
         print("\n[4b] Zerodha OAuth link (no credentials configured)")
         res = client.get(f"{API}/brokers/zerodha/authorize", headers=auth)
-        check("zerodha authorize refused when not configured", res.status_code == 503, res.text)
+        check("zerodha authorize refused when not configured", res.status_code in (501, 503), res.text)
         detail = str(res.json().get("detail", ""))
         check(
             "zerodha refusal is human readable",
-            "zerodha" in detail.lower() and "api key" in detail.lower(),
+            "zerodha" in detail.lower(),
             detail,
         )
 
@@ -224,7 +224,7 @@ def main() -> int:
         check("second trader registers", res.status_code == 201, res.text)
         second_auth = {"Authorization": f"Bearer {res.json()['access_token']}"}
         res = client.post(
-            f"{API}/pnl/", headers=second_auth, json={"net_pnl": 500, "date": "2026-10-24"}
+            f"{API}/pnl/", headers=second_auth, json={"net_pnl": 500, "date": calendar_day_for().isoformat()}
         )
         check("second trader publishes", res.status_code == 201, res.text)
 

@@ -339,6 +339,8 @@ class ProfileStats(BaseModel):
     worst_streak: int
     consistency_score: float
     sharpe_like: float
+    win_days: int = 0
+    loss_days: int = 0
 
 
 class UserProfileResponse(BaseModel):

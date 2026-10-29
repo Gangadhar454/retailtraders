@@ -198,17 +198,22 @@ if isinstance(body, list) and body:
     expect("zerodha is listed", "zerodha" in keys, f"keys={keys}")
     zerodha = next(b for b in body if b.get("key") == "zerodha")
     expect(
-        "zerodha is available",
-        zerodha.get("status") == "available",
+        "zerodha is coming soon",
+        zerodha.get("status") == "coming_soon",
         str(zerodha.get("status")),
     )
-    others = [
-        b for b in body if b.get("key") not in {"upstox", "zerodha"}
-    ]
+    expect("angel_one is listed", "angel_one" in keys, f"keys={keys}")
+    angel_one = next(b for b in body if b.get("key") == "angel_one")
     expect(
-        "remaining brokers are coming soon",
-        all(b.get("status") == "coming_soon" for b in others),
-        str([(b.get("key"), b.get("status")) for b in others]),
+        "angel_one is available",
+        angel_one.get("status") == "available",
+        str(angel_one.get("status")),
+    )
+    groww = next(b for b in body if b.get("key") == "groww")
+    expect(
+        "groww is coming soon",
+        groww.get("status") == "coming_soon",
+        str(groww.get("status")),
     )
 else:
     expect("supported brokers is a list", isinstance(body, list), str(type(body).__name__))
@@ -275,7 +280,7 @@ if status == 200:
 else:
     expect(
         "zerodha authorize refused when not configured",
-        status == 503,
+        status in (501, 503),
         f"status={status} body={body}",
     )
     detail = str(body.get("detail", "")) if isinstance(body, dict) else ""
