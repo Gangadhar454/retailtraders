@@ -193,3 +193,4 @@ ssh -i "C:\Users\HARITHA\Documents\netpl-keys\frontend\frontend.key" ubuntu@129.
 ssh -i "C:\Users\HARITHA\Documents\netpl-keys\frontend\frontend.key" ubuntu@129.225.71.93 "free -h"
 ssh -i "C:\Users\HARITHA\Documents\netpl-keys\backend\backend.key" ubuntu@144.24.135.247 "free -h"
 ```
+

@@ -68,15 +68,19 @@ export function LiveTape() {
     [data?.entries],
   );
 
-  // Ensure enough items so the marquee seamlessly spans across wide screens
+  // Marquee is only enabled when there are at least 4 publishes.
+  // When there are 1 to 3 publishes, show them once statically with zero repetition.
+  const isMarquee = rawEntries.length >= 4;
+
   const displayItems = useMemo(() => {
     if (rawEntries.length === 0) return [];
+    if (!isMarquee) return rawEntries;
     let items = rawEntries;
     while (items.length < 8) {
       items = [...items, ...rawEntries];
     }
     return items;
-  }, [rawEntries]);
+  }, [rawEntries, isMarquee]);
 
   // Speed calibrated to ~3.5 seconds per chip for easy readability
   const durationSec = Math.max(28, displayItems.length * 3.5);
@@ -105,22 +109,26 @@ export function LiveTape() {
       </div>
 
       <div className="relative mt-2.5 overflow-hidden">
-        {/* Soft edge gradient fades */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-surface to-transparent sm:w-12" />
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-surface to-transparent sm:w-12" />
+        {/* Soft edge gradient fades only when marquee is scrolling */}
+        {isMarquee && (
+          <>
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-surface to-transparent sm:w-12" />
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-surface to-transparent sm:w-12" />
+          </>
+        )}
 
-        {loading && displayItems.length === 0 ? (
+        {loading && rawEntries.length === 0 ? (
           <div className="flex gap-2 py-0.5">
             <div className="h-10 w-40 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
             <div className="h-10 w-44 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
             <div className="h-10 w-36 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
             <div className="h-10 w-40 shrink-0 animate-pulse rounded border border-line bg-surface-alt" />
           </div>
-        ) : displayItems.length === 0 ? (
+        ) : rawEntries.length === 0 ? (
           <p className="py-1 text-[12px] text-muted">
             Waiting for the first publish of the session…
           </p>
-        ) : (
+        ) : isMarquee ? (
           <div
             className="animate-marquee flex gap-2 py-0.5"
             style={
@@ -142,6 +150,16 @@ export function LiveTape() {
                 key={`track2-${entry.record.record_id}-${idx}`}
                 entry={entry}
                 ariaHidden
+              />
+            ))}
+          </div>
+        ) : (
+          /* Static row: strictly 1 card per publish, zero repeating */
+          <div className="flex flex-wrap gap-2 py-0.5">
+            {rawEntries.map((entry) => (
+              <TapeChip
+                key={`static-${entry.record.record_id}`}
+                entry={entry}
               />
             ))}
           </div>

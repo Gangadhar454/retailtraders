@@ -234,6 +234,18 @@ function PublishView() {
     );
   }
 
+  function handleAmountChange(val: string) {
+    const trimmed = val.trim();
+    // Allow empty, lone "-", lone "+", or valid numbers with optional leading sign & single dot
+    if (trimmed === "" || trimmed === "-" || trimmed === "+") {
+      setAmount(trimmed);
+      return;
+    }
+    if (/^[-+]?\d*\.?\d*$/.test(trimmed)) {
+      setAmount(trimmed);
+    }
+  }
+
   async function submitManual(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -242,7 +254,7 @@ function PublishView() {
 
     const value = Number(amount);
     if (!Number.isFinite(value) || value === 0) {
-      setError("Enter a non-zero P&L amount");
+      setError("Enter a non-zero P&L amount (e.g. -12500 for a loss or 15000 for a profit)");
       setBusy(false);
       return;
     }
@@ -446,26 +458,39 @@ function PublishView() {
                     htmlFor="amount"
                     className="mb-1.5 block text-[12px] font-medium text-ink-soft"
                   >
-                    Net P&amp;L (₹) &mdash; use a minus sign for a loss
+                    Net P&amp;L (₹) &mdash; use a minus sign for a loss (e.g. -12500)
                   </label>
-                  <input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="input-base numeric text-[15px]"
-                    placeholder="-12500"
-                  />
-                  {amount && Number(amount) !== 0 && (
+                  <div className="relative">
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 numeric text-[14px] font-semibold text-muted select-none"
+                    >
+                      ₹
+                    </span>
+                    <input
+                      id="amount"
+                      type="text"
+                      autoComplete="off"
+                      required
+                      value={amount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      className={`input-base numeric pl-7 text-[16px] font-semibold transition-colors ${
+                        amount.startsWith("-")
+                          ? "text-loss border-loss/50 focus:border-loss"
+                          : amount && Number(amount) > 0
+                            ? "text-profit border-profit/50 focus:border-profit"
+                            : "text-foreground"
+                      }`}
+                      placeholder="-12500"
+                    />
+                  </div>
+                  {amount && amount !== "-" && amount !== "+" && !isNaN(Number(amount)) && Number(amount) !== 0 && (
                     <p
                       className={`numeric mt-1.5 text-[13px] font-semibold ${
                         Number(amount) < 0 ? "text-loss" : "text-profit"
                       }`}
                     >
-                      {formatSignedINR(Number(amount))}
+                      Publishing: {formatSignedINR(Number(amount))}
                     </p>
                   )}
                 </div>
