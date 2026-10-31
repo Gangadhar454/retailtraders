@@ -79,6 +79,30 @@ class UserLoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6)
+
+
+class ResetPasswordWithOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6)
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _password_strength(cls, value: str) -> str:
+        if not any(c.isalpha() for c in value):
+            raise ValueError("Password must contain at least one letter")
+        if not any(c.isdigit() for c in value):
+            raise ValueError("Password must contain at least one number")
+        return value
+
+
 class RefreshRequest(BaseModel):
     """The refresh token travels in the body, never the query string."""
 

@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     simulation_interval_min_seconds: int = 30
     simulation_interval_max_seconds: int = 60
 
+    # --- Email & OTP (Resend) ---------------------------------------------
+    resend_api_key: str = ""
+    email_from: str = "RetailTraders <no-reply@retailtraders.in>"
+    email_reply_to: str = "support@retailtraders.in"
+
     @field_validator("database_url", mode="after")
     @classmethod
     def _normalize_sqlite_path(cls, value: str) -> str:

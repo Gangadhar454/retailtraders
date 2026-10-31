@@ -266,6 +266,40 @@ export const authApi = {
     });
   },
 
+  async forgotPasswordRequest(email: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/api/v1/auth/forgot-password/request", {
+      method: "POST",
+      body: { email },
+    });
+  },
+
+  async verifyOtp(input: {
+    email: string;
+    otp: string;
+  }): Promise<{ valid: boolean; message: string }> {
+    return apiFetch<{ valid: boolean; message: string }>(
+      "/api/v1/auth/forgot-password/verify-otp",
+      {
+        method: "POST",
+        body: input,
+      },
+    );
+  },
+
+  async resetPasswordWithOtp(input: {
+    email: string;
+    otp: string;
+    new_password: string;
+  }): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(
+      "/api/v1/auth/forgot-password/reset",
+      {
+        method: "POST",
+        body: input,
+      },
+    );
+  },
+
   async logout(): Promise<void> {
     clearTokens();
   },

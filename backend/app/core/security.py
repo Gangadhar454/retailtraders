@@ -88,3 +88,20 @@ def new_state_token() -> str:
 
 def constant_time_equals(a: str, b: str) -> bool:
     return hmac.compare_digest(a, b)
+
+
+def hash_otp(otp: str) -> str:
+    """Hash a numeric OTP with server secret key for tamper-proof storage."""
+    return hmac.new(settings.secret_key.encode(), otp.encode(), hashlib.sha256).hexdigest()
+
+
+def verify_otp(otp: str, otp_hash: str) -> bool:
+    """Verify numeric OTP using constant-time comparison."""
+    expected = hash_otp(otp)
+    return hmac.compare_digest(expected, otp_hash)
+
+
+def generate_otp() -> str:
+    """Generate a secure 6-digit numeric OTP."""
+    return f"{secrets.randbelow(900000) + 100000}"
+

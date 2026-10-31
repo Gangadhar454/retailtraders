@@ -334,6 +334,23 @@ export function HallOfPain({
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loadMoreError, onLoadMore]);
 
+  useEffect(() => {
+    const rootContainer = scrollContainerRef.current;
+    if (!rootContainer || !hasMore || loadingMore || loadMoreError || !onLoadMore) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = rootContainer;
+      if (scrollHeight - scrollTop - clientHeight < 350) {
+        onLoadMore();
+      }
+    };
+
+    rootContainer.addEventListener("scroll", handleScroll, { passive: true });
+    return () => rootContainer.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loadingMore, loadMoreError, onLoadMore]);
+
   const secondsAgo =
     lastUpdated && tick
       ? Math.max(0, Math.floor((tick - lastUpdated) / 1000))

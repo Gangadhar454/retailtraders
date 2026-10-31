@@ -3,10 +3,11 @@ from __future__ import annotations
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, DbSession
@@ -15,12 +16,19 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    generate_otp,
+    hash_otp,
     hash_password,
+    verify_otp,
     verify_password,
 )
-from app.models import LinkedBroker, User
+from app.models import LinkedBroker, PasswordResetOTP, User
+from app.services.email import send_otp_email
 from app.schemas import (
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    VerifyOTPRequest,
+    ResetPasswordWithOTPRequest,
     CurrentUser as CurrentUserSchema,
     LinkedBrokerOut,
     RefreshRequest,
@@ -205,3 +213,188 @@ async def change_password(
     current_user.password_hash = hash_password(payload.new_password)
     await db.commit()
     return {"message": "Password changed successfully"}
+
+@router.post("/forgot-password/request")
+async def forgot_password_request(
+    payload: ForgotPasswordRequest,
+    db: DbSession,
+) -> dict[str, str]:
+    email = payload.email.lower().strip()
+    user = await db.scalar(select(User).where(User.email == email))
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address.",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been disabled. Please contact support.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # Rate limiting: 60 seconds cooldown between OTP requests
+    recent_otp = await db.scalar(
+        select(PasswordResetOTP)
+        .where(
+            PasswordResetOTP.user_id == user.user_id,
+            PasswordResetOTP.is_used.is_(False),
+        )
+        .order_by(PasswordResetOTP.created_at.desc())
+        .limit(1)
+    )
+    if recent_otp and recent_otp.created_at:
+        created_time = (
+            recent_otp.created_at
+            if recent_otp.created_at.tzinfo
+            else recent_otp.created_at.replace(tzinfo=timezone.utc)
+        )
+        elapsed = (now - created_time).total_seconds()
+        if elapsed < 60:
+            remaining = int(60 - elapsed)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {remaining} seconds before requesting a new verification code.",
+            )
+
+    # Invalidate previous unused OTPs
+    await db.execute(
+        update(PasswordResetOTP)
+        .where(
+            PasswordResetOTP.user_id == user.user_id,
+            PasswordResetOTP.is_used.is_(False),
+        )
+        .values(is_used=True)
+    )
+
+    # Generate and store new OTP
+    otp_code = generate_otp()
+    otp_record = PasswordResetOTP(
+        otp_id=uuid.uuid4(),
+        user_id=user.user_id,
+        otp_hash=hash_otp(otp_code),
+        expires_at=now + timedelta(minutes=10),
+        attempts=0,
+        is_used=False,
+        created_at=now,
+    )
+    db.add(otp_record)
+    await db.commit()
+
+    # Send email
+    await send_otp_email(user.email, otp_code, user.display_name)
+
+    return {
+        "message": "If an account with that email exists, a 6-digit verification code has been sent."
+    }
+
+
+@router.post("/forgot-password/verify-otp")
+async def verify_password_reset_otp(
+    payload: VerifyOTPRequest,
+    db: DbSession,
+) -> dict[str, Any]:
+    email = payload.email.lower().strip()
+    user = await db.scalar(select(User).where(User.email == email))
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code.",
+        )
+
+    now = datetime.now(timezone.utc)
+    otp_record = await db.scalar(
+        select(PasswordResetOTP)
+        .where(
+            PasswordResetOTP.user_id == user.user_id,
+            PasswordResetOTP.is_used.is_(False),
+            PasswordResetOTP.expires_at > now,
+        )
+        .order_by(PasswordResetOTP.created_at.desc())
+        .limit(1)
+    )
+
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired or is invalid. Please request a new one.",
+        )
+
+    if otp_record.attempts >= 5:
+        otp_record.is_used = True
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many incorrect attempts. Please request a new verification code.",
+        )
+
+    if not verify_otp(payload.otp, otp_record.otp_hash):
+        otp_record.attempts += 1
+        await db.commit()
+        remaining = 5 - otp_record.attempts
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Incorrect verification code. {remaining} attempt{'s' if remaining != 1 else ''} remaining.",
+        )
+
+    return {"valid": True, "message": "Verification code is valid."}
+
+
+@router.post("/forgot-password/reset")
+async def reset_password_with_otp(
+    payload: ResetPasswordWithOTPRequest,
+    db: DbSession,
+) -> dict[str, str]:
+    email = payload.email.lower().strip()
+    user = await db.scalar(select(User).where(User.email == email))
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code.",
+        )
+
+    now = datetime.now(timezone.utc)
+    otp_record = await db.scalar(
+        select(PasswordResetOTP)
+        .where(
+            PasswordResetOTP.user_id == user.user_id,
+            PasswordResetOTP.is_used.is_(False),
+            PasswordResetOTP.expires_at > now,
+        )
+        .order_by(PasswordResetOTP.created_at.desc())
+        .limit(1)
+    )
+
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired or is invalid. Please request a new one.",
+        )
+
+    if otp_record.attempts >= 5:
+        otp_record.is_used = True
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many incorrect attempts. Please request a new verification code.",
+        )
+
+    if not verify_otp(payload.otp, otp_record.otp_hash):
+        otp_record.attempts += 1
+        await db.commit()
+        remaining = 5 - otp_record.attempts
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Incorrect verification code. {remaining} attempt{'s' if remaining != 1 else ''} remaining.",
+        )
+
+    # Invalidate OTP so it can't be reused
+    otp_record.is_used = True
+    # Update password
+    user.password_hash = hash_password(payload.new_password)
+    await db.commit()
+
+    return {"message": "Password reset successfully. You can now sign in with your new password."}
+

@@ -74,7 +74,6 @@ export function Dashboard() {
     if (
       !board.data ||
       board.loading ||
-      board.refreshing ||
       loadingMoreKeyRef.current === queryKey
     ) {
       return;
@@ -102,6 +101,16 @@ export function Dashboard() {
         queryKeyRef.current !== queryKey ||
         loadMoreRequestRef.current !== requestId
       ) {
+        return;
+      }
+      if (result.entries.length === 0) {
+        setPages((current) => ({
+          ...current,
+          fetchedCount: Math.max(
+            current.fetchedCount,
+            (board.data?.total ?? 0) - firstPage.length,
+          ),
+        }));
         return;
       }
       setPages((current) => ({
