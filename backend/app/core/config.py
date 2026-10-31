@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_ENV_FILE = _BACKEND_DIR / ".env"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE) if _ENV_FILE.exists() else ".env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -82,6 +86,24 @@ class Settings(BaseSettings):
     # --- Background sync --------------------------------------------------
     sync_enabled: bool = True
     sync_interval_minutes: int = 30
+
+    # --- Admin Console & Market Simulation --------------------------------
+    admin_username: str = "admin"
+    admin_password: str = "admin123"
+    simulation_enabled: bool = True
+    simulation_all_hours: bool = False
+    simulation_interval_minutes: int = 1
+    simulation_interval_min_seconds: int = 30
+    simulation_interval_max_seconds: int = 60
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalize_sqlite_path(cls, value: str) -> str:
+        if value.startswith("sqlite+aiosqlite:///./"):
+            rel_file = value.replace("sqlite+aiosqlite:///./", "")
+            abs_path = (_BACKEND_DIR / rel_file).as_posix()
+            return f"sqlite+aiosqlite:///{abs_path}"
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod

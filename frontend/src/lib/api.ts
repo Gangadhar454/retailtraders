@@ -20,6 +20,7 @@ export const API_BASE =
 
 const TOKEN_KEY = "netpnl.access_token";
 const REFRESH_KEY = "netpnl.refresh_token";
+export const ADMIN_TOKEN_KEY = "netpnl.admin_token";
 
 export class ApiError extends Error {
   status: number;
@@ -43,16 +44,40 @@ export function getRefreshToken(): string | null {
   return window.localStorage.getItem(REFRESH_KEY);
 }
 
+export function getAdminToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+export function setAdminToken(token: string): void {
+  if (typeof window === "undefined") return;
+  // Mutual exclusivity: logging in as admin immediately purges normal user tokens
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(REFRESH_KEY);
+  window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  window.dispatchEvent(new Event("netpnl:auth_change"));
+}
+
+export function clearAdminToken(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+  window.dispatchEvent(new Event("netpnl:auth_change"));
+}
+
 export function setTokens(tokens: TokenPair): void {
   if (typeof window === "undefined") return;
+  // Mutual exclusivity: logging in as normal user immediately purges admin session
+  window.localStorage.removeItem(ADMIN_TOKEN_KEY);
   window.localStorage.setItem(TOKEN_KEY, tokens.access_token);
   window.localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
+  window.dispatchEvent(new Event("netpnl:auth_change"));
 }
 
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(REFRESH_KEY);
+  window.dispatchEvent(new Event("netpnl:auth_change"));
 }
 
 function cleanErrorMsg(msg: string): string {
@@ -394,3 +419,102 @@ export const userApi = {
   upiIntent: (amount = 0): Promise<UpiIntent> =>
     apiFetch<UpiIntent>(`/api/v1/upi/intent?amount=${amount}`, { auth: true }),
 };
+
+export interface AdminMetrics {
+  date: string;
+  is_market_open: boolean;
+  simulation_enabled: boolean;
+  daily: {
+    total_users: number;
+    new_real_users: number;
+    total_posts: number;
+    real_posts: number;
+    real_manual_posts: number;
+    real_verified_posts: number;
+    simulated_posts: number;
+  };
+  cumulative: {
+    total_users: number;
+    total_real_users: number;
+    total_simulated_users: number;
+    total_posts: number;
+    real_posts: number;
+    real_manual_posts: number;
+    real_verified_posts: number;
+    simulated_posts: number;
+  };
+}
+
+export interface BurstTrade {
+  record_id: string;
+  username: string;
+  display_name: string;
+  net_pnl: number;
+  trade_count: number;
+  is_verified?: boolean;
+  broker_source?: string | null;
+  notes?: string | null;
+  is_update?: boolean;
+  date: string;
+  created_at: string;
+}
+
+export interface BurstResponse {
+  success: boolean;
+  burst_count: number;
+  trades: BurstTrade[];
+  metrics: AdminMetrics;
+}
+
+export const adminApi = {
+  login: (
+    username: string,
+    password: string,
+  ): Promise<{ access_token: string; token_type: string; username: string }> =>
+    apiFetch("/api/v1/admin/login", {
+      method: "POST",
+      body: { username, password },
+    }),
+
+  me: (token: string): Promise<{ username: string; role: string }> =>
+    apiFetch("/api/v1/admin/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  metrics: (token: string): Promise<AdminMetrics> =>
+    apiFetch<AdminMetrics>("/api/v1/admin/metrics", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  burst: (token: string, count: number): Promise<BurstResponse> =>
+    apiFetch<BurstResponse>("/api/v1/admin/burst", {
+      method: "POST",
+      body: { count },
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  toggleSimulation: (
+    token: string,
+    enabled: boolean,
+  ): Promise<{ success: boolean; simulation_enabled: boolean }> =>
+    apiFetch("/api/v1/admin/toggle-simulation", {
+      method: "POST",
+      body: { enabled },
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  purgeSimulation: (
+    token: string,
+    confirm: boolean,
+  ): Promise<{
+    success: boolean;
+    result: { deleted_records: number; deleted_users: number };
+    metrics: AdminMetrics;
+  }> =>
+    apiFetch("/api/v1/admin/purge-simulation", {
+      method: "POST",
+      body: { confirm },
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+

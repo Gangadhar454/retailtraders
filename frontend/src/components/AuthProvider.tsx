@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { authApi, getAccessToken } from "@/lib/api";
+import { authApi, getAccessToken, getAdminToken } from "@/lib/api";
 import type { CurrentUser } from "@/lib/types";
 
 interface AuthContextValue {
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!getAccessToken()) {
+    if (!getAccessToken() || getAdminToken()) {
       setUser(null);
       setLoading(false);
       return;
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await Promise.resolve();
       if (cancelled) return;
 
-      if (!getAccessToken()) {
+      if (!getAccessToken() || getAdminToken()) {
         setUser(null);
         setLoading(false);
         return;
@@ -77,6 +77,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      void refresh();
+    };
+    window.addEventListener("netpnl:auth_change", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener("netpnl:auth_change", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, [refresh]);
 
   const login = useCallback(
     async (email: string, password: string) => {

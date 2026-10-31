@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -63,3 +63,25 @@ async def init_models() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Self-healing for is_simulated columns across MySQL and SQLite
+        try:
+            if settings.database_url.startswith("sqlite"):
+                await conn.execute(text("ALTER TABLE users ADD COLUMN is_simulated BOOLEAN DEFAULT 0"))
+            else:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN is_simulated BOOLEAN DEFAULT FALSE"))
+        except Exception:
+            pass
+        try:
+            if settings.database_url.startswith("sqlite"):
+                await conn.execute(text("ALTER TABLE linked_brokers ADD COLUMN is_simulated BOOLEAN DEFAULT 0"))
+            else:
+                await conn.execute(text("ALTER TABLE linked_brokers ADD COLUMN is_simulated BOOLEAN DEFAULT FALSE"))
+        except Exception:
+            pass
+        try:
+            if settings.database_url.startswith("sqlite"):
+                await conn.execute(text("ALTER TABLE pnl_records ADD COLUMN is_simulated BOOLEAN DEFAULT 0"))
+            else:
+                await conn.execute(text("ALTER TABLE pnl_records ADD COLUMN is_simulated BOOLEAN DEFAULT FALSE"))
+        except Exception:
+            pass

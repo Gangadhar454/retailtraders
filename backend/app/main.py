@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import random
 from collections.abc import AsyncIterator
 from urllib.parse import parse_qs, urlencode
 
@@ -11,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.api.routes import auth, brokers, leaderboard, pnl, upi, users
+from app.api.routes import admin, auth, brokers, leaderboard, pnl, upi, users
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine, init_models
 from app.services.pnl_sync import sync_all_linked_brokers
@@ -36,17 +37,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_models()
     logger.info("%s API ready (env=%s)", settings.app_name, settings.environment)
 
-    task: asyncio.Task[None] | None = None
+    sync_task: asyncio.Task[None] | None = None
     if settings.sync_enabled:
-        task = asyncio.create_task(_sync_loop())
+        sync_task = asyncio.create_task(_sync_loop())
+
+    sim_task: asyncio.Task[None] | None = None
+    if settings.simulation_enabled:
+        sim_task = asyncio.create_task(_simulation_loop())
 
     try:
         yield
     finally:
-        if task:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+        for t in (sync_task, sim_task):
+            if t:
+                t.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await t
         await engine.dispose()
 
 
@@ -65,6 +71,42 @@ async def _sync_loop() -> None:
             raise
         except Exception:
             logger.exception("Broker sync sweep failed")
+        await asyncio.sleep(interval)
+
+
+async def _simulation_loop() -> None:
+    """Staggers realistic community publishes during market hours on weekdays (and continuously in local dev)."""
+    from app.simulation.engine import is_market_open_ist, trigger_burst
+
+    # Initial delay on boot
+    await asyncio.sleep(15)
+    while True:
+        try:
+            # Follow market hours unless testing locally or SIMULATION_ALL_HOURS is set in .env
+            market_active = (
+                is_market_open_ist()
+                or settings.environment == "local"
+                or settings.simulation_all_hours
+            )
+            if settings.simulation_enabled and market_active:
+                async with AsyncSessionLocal() as db:
+                    burst = await trigger_burst(db, count=1)
+                    if burst:
+                        logger.info(
+                            "Simulated community publish: %s (%s, P&L: %s)",
+                            burst[0]["username"],
+                            burst[0]["display_name"],
+                            burst[0]["net_pnl"],
+                        )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Market simulation tick failed")
+        # Sleep for a randomized 30 to 60 seconds for an active, dynamic live tape
+        interval = random.randint(
+            settings.simulation_interval_min_seconds,
+            settings.simulation_interval_max_seconds,
+        )
         await asyncio.sleep(interval)
 
 
@@ -127,5 +169,5 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "database": database, "environment": settings.environment}
 
 
-for router_module in (auth, brokers, pnl, upi, leaderboard, users):
+for router_module in (auth, brokers, pnl, upi, leaderboard, users, admin):
     app.include_router(router_module.router, prefix=settings.api_prefix)

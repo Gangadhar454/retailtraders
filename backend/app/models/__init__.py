@@ -70,6 +70,7 @@ class User(Base):
         DateTime(timezone=True), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_simulated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     linked_brokers: Mapped[list[LinkedBroker]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
@@ -106,6 +107,7 @@ class LinkedBroker(Base):
         DateTime(timezone=True), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_simulated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -144,6 +146,7 @@ class PnLRecord(Base):
     # True when the user has made a manual entry for this day. Makes the
     # record unverified even if broker-fetched P&L also exists.
     has_manual_entry: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_simulated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
