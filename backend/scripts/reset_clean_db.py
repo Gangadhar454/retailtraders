@@ -39,7 +39,7 @@ async def main():
         print(f"   [OK] Cohort seeded: {total_seeded} authentic Indian personas created.")
 
         print("\n3. Triggering initial burst for today's live session...")
-        burst_entries = await trigger_burst(db, count=10)
+        burst_entries = await trigger_burst(db, count=25)
         print(f"   [OK] Published {len(burst_entries)} trades for today.")
 
         print("\n4. Verifying database integrity & date boundaries:")
