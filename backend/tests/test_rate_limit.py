@@ -84,6 +84,17 @@ class RateLimitTestCase(unittest.TestCase):
         self.assertEqual(res_b.status_code, 200)
         self.assertEqual(res_b.headers.get("x-ratelimit-remaining"), "4")
 
+    def test_cf_connecting_ip(self):
+        # Requests carrying CF-Connecting-IP should be tracked by that IP
+        headers = {"cf-connecting-ip": "103.21.244.5"}
+        for i in range(5):
+            res = self.client.get("/api/v1/leaderboard", headers=headers)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.headers.get("x-ratelimit-remaining"), str(5 - (i + 1)))
+
+        res = self.client.get("/api/v1/leaderboard", headers=headers)
+        self.assertEqual(res.status_code, 429)
+
     def test_cors_options_exempt(self):
         headers = {"x-forwarded-for": "203.0.113.30"}
         # Exhaust quota

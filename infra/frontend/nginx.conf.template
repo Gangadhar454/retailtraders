@@ -1,10 +1,16 @@
 # Production Nginx reverse proxy for retailtraders.in
 
+# Map real client IP for rate limiting (prefers CF-Connecting-IP from Cloudflare, falls back to direct IP)
+map $http_cf_connecting_ip $rate_limit_ip {
+    ""      $binary_remote_addr;
+    default $http_cf_connecting_ip;
+}
+
 # DDoS & Rate Limiting Zones (Shared memory in http context)
 # 10MB zone tracks ~160,000 unique client IP states
-limit_req_zone $binary_remote_addr zone=rt_api_general:10m rate=30r/s;
-limit_req_zone $binary_remote_addr zone=rt_api_auth:10m rate=5r/s;
-limit_conn_zone $binary_remote_addr zone=rt_addr_conn:10m;
+limit_req_zone $rate_limit_ip zone=rt_api_general:10m rate=30r/s;
+limit_req_zone $rate_limit_ip zone=rt_api_auth:10m rate=5r/s;
+limit_conn_zone $rate_limit_ip zone=rt_addr_conn:10m;
 
 # Return HTTP 429 Too Many Requests on rate limit
 limit_req_status 429;
@@ -78,6 +84,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
@@ -93,6 +100,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
@@ -115,5 +123,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
     }
 }

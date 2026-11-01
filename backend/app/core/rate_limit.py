@@ -16,19 +16,24 @@ logger = logging.getLogger(__name__)
 
 def get_real_client_ip(request: Request) -> str:
     """Extract real client IP behind reverse proxies (Nginx / Cloudflare / OCI Load Balancer)."""
-    # 1. Check X-Forwarded-For header (client, proxy1, proxy2)
+    # 1. Check CF-Connecting-IP header (Cloudflare verified client IP)
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip and cf_ip.strip():
+        return cf_ip.strip()
+
+    # 2. Check X-Forwarded-For header (client, proxy1, proxy2)
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         client_ip = forwarded.split(",")[0].strip()
         if client_ip:
             return client_ip
 
-    # 2. Check X-Real-IP
+    # 3. Check X-Real-IP
     real_ip = request.headers.get("x-real-ip")
     if real_ip and real_ip.strip():
         return real_ip.strip()
 
-    # 3. Direct socket client host
+    # 4. Direct socket client host
     if request.client and request.client.host:
         return request.client.host
 
