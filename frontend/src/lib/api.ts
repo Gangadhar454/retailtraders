@@ -318,7 +318,7 @@ export const publicApi = {
     day?: string;
     scope?: "today" | "cumulative" | "all_time";
     verifiedOnly?: boolean;
-    sort?: "worst" | "best";
+    sort?: "recent" | "worst" | "best";
     limit?: number;
     offset?: number;
   } = {}): Promise<LeaderboardResponse> => {

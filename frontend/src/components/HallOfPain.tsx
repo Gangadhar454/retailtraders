@@ -7,12 +7,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { DonateModal } from "@/components/DonateModal";
 import { PnlTicker } from "@/components/AnimatedNumber";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
-import { avatarInk, avatarTint, formatDate, initials, pnlTone } from "@/lib/format";
+import { avatarInk, avatarTint, formatDate, formatPostDateTime, initials, pnlTone } from "@/lib/format";
 import { publicApi } from "@/lib/api";
 import type { DonateEligibility, LeaderboardEntry } from "@/lib/types";
 
 export type LeaderboardFilter = "all" | "verified" | "unverified";
-export type LeaderboardSort = "worst" | "best";
+export type LeaderboardSort = "recent" | "worst" | "best";
 
 interface HallOfPainProps {
   entries: LeaderboardEntry[];
@@ -39,6 +39,7 @@ const FILTERS: { key: LeaderboardFilter; label: string }[] = [
 ];
 
 const SORTS: { key: LeaderboardSort; label: string }[] = [
+  { key: "recent", label: "Recent" },
   { key: "worst", label: "Worst first" },
   { key: "best", label: "Best first" },
 ];
@@ -186,8 +187,8 @@ function LeaderboardRow({
             <span aria-hidden>&middot;</span>
             <span className="numeric">
               {mode === "cumulative"
-                ? `last active ${formatDate(entry.record_date)}`
-                : formatDate(entry.record_date)}
+                ? `last active ${formatPostDateTime(entry.record_date, entry.created_at)}`
+                : formatPostDateTime(entry.record_date, entry.created_at)}
             </span>
             {entry.note && (
               <span className="hidden truncate italic opacity-80 md:inline">

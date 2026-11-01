@@ -87,7 +87,8 @@ class TestZeroPnLPrevention(unittest.TestCase):
             self.assertIn("trades are active", detail)
 
         # 2. Verify no zero PnL record was posted to leaderboard
-        leaderboard_res = self.client.get("/api/v1/leaderboard/?mode=today")
+        target_day = trading_day_for().isoformat()
+        leaderboard_res = self.client.get(f"/api/v1/leaderboard/?day={target_day}")
         self.assertEqual(leaderboard_res.status_code, 200)
         entries = leaderboard_res.json().get("entries", [])
         self.assertEqual(len(entries), 0, "No zero P&L entry should be posted on the leaderboard")
@@ -115,7 +116,7 @@ class TestZeroPnLPrevention(unittest.TestCase):
             self.assertEqual(data["record"]["net_pnl"], 1500.0)
 
         # 4. Verify now the entry DOES appear on the leaderboard
-        leaderboard_res = self.client.get("/api/v1/leaderboard/?mode=today")
+        leaderboard_res = self.client.get(f"/api/v1/leaderboard/?day={target_day}")
         self.assertEqual(leaderboard_res.status_code, 200)
         entries = leaderboard_res.json().get("entries", [])
         self.assertEqual(len(entries), 1)

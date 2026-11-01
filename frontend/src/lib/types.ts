@@ -132,6 +132,7 @@ export interface LeaderboardEntry {
   broker_source: string | null;
   trade_count: number;
   record_date: string;
+  created_at?: string | null;
   note: string | null;
 }
 

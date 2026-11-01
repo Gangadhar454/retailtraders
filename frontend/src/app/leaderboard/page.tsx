@@ -18,7 +18,7 @@ interface LeaderboardPages {
 
 export default function LeaderboardPage() {
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
-  const [sort, setSort] = useState<LeaderboardSort>("worst");
+  const [sort, setSort] = useState<LeaderboardSort>("recent");
   const queryKey = `cumulative:${filter}:${sort}`;
   const queryKeyRef = useRef(queryKey);
   const loadMoreRequestRef = useRef(0);

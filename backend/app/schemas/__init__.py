@@ -329,6 +329,7 @@ class LeaderboardEntry(BaseModel):
     broker_source: str | None = None
     trade_count: int = 0
     record_date: date_type
+    created_at: UtcDateTime | None = None
     note: str | None = None
 
 

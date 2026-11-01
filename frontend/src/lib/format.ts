@@ -64,6 +64,36 @@ export function formatDateLong(iso: string): string {
 }
 
 /**
+ * Formats a post's date and time, e.g. "1 Nov, 03:42 PM".
+ * If timestampIso is provided, formats both the date and time in the user's local timezone.
+ * If timestampIso is omitted or invalid, falls back to date-only (e.g. "1 Nov").
+ */
+export function formatPostDateTime(recordDateIso: string, timestampIso?: string | null): string {
+  if (timestampIso) {
+    const d = parseApiDate(timestampIso);
+    if (!Number.isNaN(d.getTime())) {
+      const datePart = d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      });
+      const timePart = d.toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return `${datePart}, ${timePart.toUpperCase()}`;
+    }
+  }
+
+  const d = new Date(`${recordDateIso.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return recordDateIso;
+  return d.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/**
  * Parses an API timestamp. The API sends UTC; a value without an offset is
  * read as UTC too, so it never slips into local time by accident.
  */

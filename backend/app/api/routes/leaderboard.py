@@ -124,7 +124,7 @@ async def leaderboard(
     day: date | None = Query(default=None),
     scope: str = Query(default="today", pattern="^(today|all_time|cumulative)$"),
     verified_only: bool | None = Query(default=None),
-    sort: str = Query(default="worst", pattern="^(worst|best)$"),
+    sort: str = Query(default="recent", pattern="^(recent|worst|best)$"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> LeaderboardResponse:
@@ -136,6 +136,7 @@ async def leaderboard(
                 func.sum(PnLRecord.trade_count).label("cumulative_trades"),
                 func.count(PnLRecord.record_id).label("session_count"),
                 func.max(PnLRecord.date).label("latest_date"),
+                func.max(PnLRecord.created_at).label("latest_created_at"),
                 func.sum(case((PnLRecord.is_verified.is_(True), 1), else_=0)).label("verified_session_count"),
                 func.sum(func.abs(PnLRecord.net_pnl)).label("total_abs_pnl"),
                 func.sum(case((PnLRecord.is_verified.is_(True), func.abs(PnLRecord.net_pnl)), else_=0.0)).label("verified_abs_pnl"),
@@ -163,7 +164,12 @@ async def leaderboard(
             else:
                 filters.append(~is_verified_cond)
 
-        order = subq.c.cumulative_pnl.asc() if sort == "worst" else subq.c.cumulative_pnl.desc()
+        if sort == "recent":
+            order_by_list = [subq.c.latest_created_at.desc(), subq.c.latest_date.desc(), User.user_id.asc()]
+        elif sort == "worst":
+            order_by_list = [subq.c.cumulative_pnl.asc(), User.created_at.asc(), User.user_id.asc()]
+        else:
+            order_by_list = [subq.c.cumulative_pnl.desc(), User.created_at.asc(), User.user_id.asc()]
 
         query = (
             select(
@@ -171,6 +177,7 @@ async def leaderboard(
                 subq.c.cumulative_pnl,
                 subq.c.cumulative_trades,
                 subq.c.latest_date,
+                subq.c.latest_created_at,
                 subq.c.session_count,
                 subq.c.verified_session_count,
                 subq.c.total_abs_pnl,
@@ -179,7 +186,7 @@ async def leaderboard(
             .join(subq, User.user_id == subq.c.user_id)
             .options(selectinload(User.linked_brokers))
             .where(*filters)
-            .order_by(order, User.created_at.asc(), User.user_id.asc())
+            .order_by(*order_by_list)
             .offset(offset)
             .limit(limit)
         )
@@ -211,7 +218,7 @@ async def leaderboard(
                     broker_sources_by_user[r.user_id] = r.broker_source
 
         entries = []
-        for index, (u, cum_pnl, cum_trades, latest_date, s_count, v_count, t_abs, v_abs) in enumerate(rows):
+        for index, (u, cum_pnl, cum_trades, latest_date, latest_created_at, s_count, v_count, t_abs, v_abs) in enumerate(rows):
             active_brokers = [b.broker_name.value for b in u.linked_brokers if b.is_active]
 
             s_count_val = int(s_count or 0)
@@ -240,6 +247,7 @@ async def leaderboard(
                     broker_source=broker_src if is_entry_verified else None,
                     trade_count=int(cum_trades or 0),
                     record_date=latest_date,
+                    created_at=latest_created_at,
                     note=notes_by_user.get(u.user_id),
                 )
             )
@@ -259,10 +267,16 @@ async def leaderboard(
     if verified_only is not None:
         query = query.where(PnLRecord.is_verified.is_(verified_only))
 
-    order = PnLRecord.net_pnl.asc() if sort == "worst" else PnLRecord.net_pnl.desc()
+    if sort == "recent":
+        order_by_list = [PnLRecord.created_at.desc(), PnLRecord.record_id.desc()]
+    elif sort == "worst":
+        order_by_list = [PnLRecord.net_pnl.asc(), PnLRecord.created_at.asc(), PnLRecord.record_id.asc()]
+    else:
+        order_by_list = [PnLRecord.net_pnl.desc(), PnLRecord.created_at.asc(), PnLRecord.record_id.asc()]
+
     records = (
         await db.scalars(
-            query.order_by(order, PnLRecord.created_at.asc(), PnLRecord.record_id.asc())
+            query.order_by(*order_by_list)
             .offset(offset)
             .limit(limit)
         )
@@ -291,6 +305,7 @@ async def leaderboard(
             broker_source=record.broker_source,
             trade_count=record.trade_count,
             record_date=record.date,
+            created_at=record.created_at,
             note=record.notes,
         )
         for index, record in enumerate(records)
