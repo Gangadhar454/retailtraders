@@ -82,9 +82,9 @@ export function Nav() {
           <button
             type="button"
             onClick={() => setHelpOpen(true)}
-            title="How it works"
-            aria-label="How it works"
-            className="grid h-7 w-7 place-items-center rounded-full border border-line bg-surface text-[12px] font-bold text-ink-soft transition-all hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
+            title="Help & User Manual"
+            aria-label="Help & User Manual"
+            className="grid h-7 w-7 place-items-center rounded-full border border-line bg-surface text-[12px] font-bold text-ink-soft transition-all hover:border-brand/40 hover:bg-brand-soft hover:text-brand cursor-pointer select-none"
           >
             ?
           </button>
@@ -95,7 +95,7 @@ export function Nav() {
             <>
               <Link
                 href="/settings"
-                className="hidden items-center gap-2 rounded border border-line bg-surface-alt px-2 py-1 transition-colors hover:bg-surface-sunken sm:flex"
+                className="hidden items-center gap-2 rounded border border-line bg-surface-alt px-2 py-1 transition-colors hover:bg-surface-sunken sm:flex cursor-pointer select-none"
               >
                 <span
                   className="grid h-6 w-6 place-items-center rounded text-[10px] font-bold"
@@ -134,7 +134,7 @@ export function Nav() {
             aria-label="Toggle navigation"
             aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((open) => !open)}
-            className="grid h-8 w-8 place-items-center rounded border border-line bg-surface text-ink-soft md:hidden"
+            className="grid h-8 w-8 place-items-center rounded border border-line bg-surface text-ink-soft md:hidden cursor-pointer select-none"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
               <path

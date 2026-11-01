@@ -56,7 +56,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       title={isDark ? "Switch to light theme" : "Switch to dark theme"}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      className="grid h-7 w-7 place-items-center rounded-full border border-line bg-surface text-ink-soft transition-all hover:border-brand/40 hover:bg-brand-soft hover:text-brand active:scale-95"
+      className="grid h-7 w-7 place-items-center rounded-full border border-line bg-surface text-ink-soft transition-all hover:border-brand/40 hover:bg-brand-soft hover:text-brand active:scale-95 cursor-pointer select-none"
     >
       {isDark ? (
         /* Sun icon (currently dark, click to switch to light) */

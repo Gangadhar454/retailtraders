@@ -38,7 +38,7 @@ export function CopyButton({
   }
 
   return (
-    <button type="button" onClick={copy} className={className || "btn-base btn-ghost"}>
+    <button type="button" onClick={copy} className={`cursor-pointer select-none ${className || "btn-base btn-ghost"}`}>
       {copied ? (
         <span className="inline-flex items-center gap-1.5 text-profit">
           <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">

@@ -58,7 +58,7 @@ export function DonateModal({
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="rounded p-1.5 text-ink-soft hover:bg-surface-alt hover:text-foreground transition-colors"
+                  className="rounded p-1.5 text-ink-soft hover:bg-surface-alt hover:text-foreground transition-colors cursor-pointer select-none"
                 >
                   <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
                     <path

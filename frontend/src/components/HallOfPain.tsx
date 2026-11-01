@@ -172,7 +172,7 @@ function LeaderboardRow({
                     eligible?.resolved_name ?? null,
                   )
                 }
-                className="group ml-2 inline-flex items-center gap-1 rounded-full border border-loss/30 bg-loss-soft px-2.5 py-0.5 text-[11px] font-semibold text-loss shadow-2xs transition-all hover:border-loss hover:bg-loss hover:text-white active:scale-95"
+                className="group ml-2 inline-flex items-center gap-1 rounded-full border border-loss/30 bg-loss-soft px-2.5 py-0.5 text-[11px] font-semibold text-loss shadow-2xs transition-all hover:border-loss hover:bg-loss hover:text-white active:scale-95 cursor-pointer select-none"
               >
                 <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3 shrink-0 text-loss transition-colors group-hover:text-white">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -246,7 +246,7 @@ function SegmentedControl<T extends string>({
           type="button"
           onClick={() => onChange(item.key)}
           aria-pressed={value === item.key}
-          className={`relative rounded-[3px] px-2.5 py-1 text-[12px] font-medium transition-colors ${
+          className={`relative rounded-[3px] px-2.5 py-1 text-[12px] font-medium transition-colors cursor-pointer select-none ${
             value === item.key
               ? "text-brand"
               : "text-ink-soft hover:bg-surface-alt hover:text-foreground"
@@ -421,7 +421,7 @@ export function HallOfPain({
       </div>
 
       <div className="card flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-10 hidden grid-cols-[2.5rem_1fr_5rem_8rem] gap-4 border-b border-line bg-surface-alt px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted sm:grid">
+        <div className="sticky top-0 z-10 hidden grid-cols-[2.5rem_1fr_5rem_8rem] gap-4 border-b border-line bg-surface-alt px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted sm:grid select-none cursor-default">
           <span>#</span>
           <span>Trader</span>
           <span className="text-right">Trades</span>
@@ -471,7 +471,7 @@ export function HallOfPain({
                 <button
                   type="button"
                   onClick={onLoadMore}
-                  className="text-[12px] font-semibold text-brand hover:underline"
+                  className="text-[12px] font-semibold text-brand hover:underline cursor-pointer select-none"
                 >
                   Load more traders
                 </button>
@@ -490,7 +490,7 @@ export function HallOfPain({
         </div>
 
         {entries.length > 0 && (
-          <div className="flex items-center justify-between border-t border-line bg-surface-alt/80 px-4 py-2 text-[11.5px] text-muted">
+          <div className="flex items-center justify-between border-t border-line bg-surface-alt/80 px-4 py-2 text-[11.5px] text-muted select-none">
             <span>
               Showing <strong className="font-semibold text-ink-soft">{entries.length}</strong> of{" "}
               <strong className="font-semibold text-ink-soft">{total}</strong> traders
@@ -498,7 +498,7 @@ export function HallOfPain({
             <button
               type="button"
               onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-              className="transition-colors hover:text-foreground"
+              className="transition-colors hover:text-foreground cursor-pointer select-none"
             >
               Back to top &uarr;
             </button>

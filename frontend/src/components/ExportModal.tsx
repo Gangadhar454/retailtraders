@@ -407,7 +407,7 @@ export function ExportModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="grid h-8 w-8 place-items-center rounded border border-line bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-foreground"
+                className="grid h-8 w-8 place-items-center rounded border border-line bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-foreground cursor-pointer select-none"
               >
                 <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                   <path

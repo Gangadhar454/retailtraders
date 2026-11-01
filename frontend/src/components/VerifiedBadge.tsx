@@ -25,7 +25,7 @@ export function VerifiedBadge({
 
   return (
     <span
-      className={`inline-flex items-center ${dimensions.gap} rounded border border-brand/25 bg-brand-soft px-1.5 py-0.5 ${dimensions.text} font-medium text-brand ${className}`}
+      className={`inline-flex items-center ${dimensions.gap} select-none cursor-default rounded border border-brand/25 bg-brand-soft px-1.5 py-0.5 ${dimensions.text} font-medium text-brand ${className}`}
       title="This P&L was fetched directly from the linked broker account"
     >
       <svg viewBox="0 0 24 24" fill="none" className={`${dimensions.box} shrink-0`}>
@@ -70,7 +70,7 @@ export function UnverifiedBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded border border-line bg-surface-alt text-muted ${dimensions} font-medium ${className}`}
+      className={`inline-flex items-center gap-1 select-none cursor-default rounded border border-line bg-surface-alt text-muted ${dimensions} font-medium ${className}`}
       title="Self-reported P&L — not verified against a broker account"
     >
       <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3 shrink-0">

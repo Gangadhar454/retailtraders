@@ -123,6 +123,51 @@ body {
   overflow-x: hidden;
 }
 
+/* --------------------------------------------------------------------------
+   Interactive Controls & Cursor Defaults
+   (Restores pointer cursor dropped by Tailwind v4 preflight & prevents
+   unwanted I-beam text selection cursor across UI chrome and clickable cards)
+   -------------------------------------------------------------------------- */
+button,
+[role="button"],
+a,
+select,
+summary,
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"],
+label[for],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed !important;
+}
+
+/* Prevent unwanted I-beam text selection cursor across interactive and UI chrome elements */
+button,
+[role="button"],
+nav,
+header,
+footer,
+.badge,
+.eyebrow,
+.btn-base,
+[aria-pressed],
+[role="tab"],
+th,
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Selection and focus read as native, not as a glow. */
 ::selection {
   background: #d5e6f9;
@@ -197,6 +242,9 @@ html.dark ::selection,
   letter-spacing: 0;
   padding: 0.5rem 0.875rem;
   line-height: 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
@@ -323,6 +371,9 @@ html.dark ::selection,
   font-size: 0.6875rem;
   font-weight: 500;
   line-height: 1.125rem;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Inline text link. */

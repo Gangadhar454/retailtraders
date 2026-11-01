@@ -583,8 +583,8 @@ function PublishView() {
                           disabled
                             ? "cursor-not-allowed opacity-55"
                             : isSelected
-                              ? "bg-brand-soft"
-                              : "hover:bg-surface-alt"
+                              ? "bg-brand-soft cursor-pointer"
+                              : "hover:bg-surface-alt cursor-pointer"
                         }`}
                       >
                         <span
@@ -754,7 +754,7 @@ function PublishView() {
                     type="button"
                     onClick={() => toggleDay(day.date)}
                     aria-expanded={open}
-                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-alt"
+                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-alt cursor-pointer select-none"
                   >
                     <svg
                       aria-hidden
@@ -925,8 +925,8 @@ function ModeButton({
         disabled
           ? "cursor-not-allowed opacity-50"
           : active
-            ? "bg-brand-soft"
-            : "hover:bg-surface-alt"
+            ? "bg-brand-soft cursor-pointer"
+            : "hover:bg-surface-alt cursor-pointer"
       }`}
     >
       <span

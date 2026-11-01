@@ -32,7 +32,7 @@ function StatCell({
 }) {
   return (
     <div className="px-4 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+      <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted select-none">
         {label}
       </p>
       <p className={`numeric mt-1 text-[15px] font-semibold ${toneClass(tone)}`}>
@@ -79,7 +79,7 @@ export function SentimentBanner({
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="grid h-7 w-7 place-items-center rounded border border-line bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-foreground disabled:opacity-50"
+              className="grid h-7 w-7 place-items-center rounded border border-line bg-surface text-muted transition-colors hover:bg-surface-alt hover:text-foreground disabled:opacity-50 cursor-pointer select-none"
               aria-label="Refresh sentiment"
             >
               <svg
@@ -102,7 +102,7 @@ export function SentimentBanner({
 
       <div className="grid gap-4 px-4 py-4 lg:grid-cols-3 sm:grid-cols-2">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted select-none">
             Today
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -127,7 +127,7 @@ export function SentimentBanner({
         </div>
 
         <div className="border-t border-line pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted select-none">
             Total P&amp;L since Oct 25, 2026
           </p>
           <AnimatedNumber
@@ -145,7 +145,7 @@ export function SentimentBanner({
                 <path d="M3.5 8.5L6.5 11.5L12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
-            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted select-none">
               Verified P&amp;L since Oct 25, 2026
             </p>
           </div>
