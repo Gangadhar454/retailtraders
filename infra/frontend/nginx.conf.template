@@ -47,19 +47,26 @@ server {
     }
 }
 
-# HTTPS server for retailtraders.in (Primary Site)
+# HTTPS redirect www -> apex domain
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name retailtraders.in www.retailtraders.in;
+    server_name www.retailtraders.in;
 
     ssl_certificate /etc/letsencrypt/live/retailtraders.in/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/retailtraders.in/privkey.pem;
 
-    # Canonical redirect: redirect www to apex domain
-    if ($host = www.retailtraders.in) {
-        return 301 https://retailtraders.in$request_uri;
-    }
+    return 301 https://retailtraders.in$request_uri;
+}
+
+# HTTPS server for retailtraders.in (Primary Site)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name retailtraders.in;
+
+    ssl_certificate /etc/letsencrypt/live/retailtraders.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/retailtraders.in/privkey.pem;
 
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:10m;
