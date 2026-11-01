@@ -5,10 +5,12 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any, Literal
 
 import bcrypt
 import jwt
+from cryptography.fernet import Fernet
 
 from app.core.config import settings
 
@@ -104,4 +106,60 @@ def verify_otp(otp: str, otp_hash: str) -> bool:
 def generate_otp() -> str:
     """Generate a secure 6-digit numeric OTP."""
     return f"{secrets.randbelow(900000) + 100000}"
+
+
+# --- Token Encryption at Rest (Fernet AES-128-CBC + HMAC-SHA256) ----------
+
+
+@lru_cache
+def _get_fernet() -> Fernet:
+    """Derive a 32-byte Fernet key deterministically from the configured encryption/secret key."""
+    raw_key = (getattr(settings, "token_encryption_key", "") or settings.secret_key).strip()
+    try:
+        if len(raw_key) == 44:
+            decoded = base64.urlsafe_b64decode(raw_key.encode("utf-8"))
+            if len(decoded) == 32:
+                return Fernet(raw_key.encode("utf-8"))
+    except Exception:
+        pass
+
+    derived_bytes = hashlib.sha256(raw_key.encode("utf-8")).digest()
+    fernet_key = base64.urlsafe_b64encode(derived_bytes)
+    return Fernet(fernet_key)
+
+
+def is_encrypted_token(value: str | None) -> bool:
+    """Check if the string is already encrypted with our Fernet key."""
+    if not value or not isinstance(value, str) or not value.startswith("gAAAAA"):
+        return False
+    try:
+        _get_fernet().decrypt(value.encode("utf-8"))
+        return True
+    except Exception:
+        return False
+
+
+def encrypt_token(raw_token: str | None) -> str | None:
+    """Encrypt a broker OAuth access or refresh token using Fernet (AES-128-CBC + HMAC-SHA256).
+
+    Idempotent: if the token is already encrypted, returns it unchanged.
+    """
+    if not raw_token:
+        return raw_token
+    if is_encrypted_token(raw_token):
+        return raw_token
+    return _get_fernet().encrypt(raw_token.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_token(cipher_token: str | None) -> str | None:
+    """Decrypt a broker OAuth access or refresh token using Fernet.
+
+    Graceful fallback: if token is legacy plaintext or decryption fails, returns raw token.
+    """
+    if not cipher_token:
+        return cipher_token
+    try:
+        return _get_fernet().decrypt(cipher_token.encode("utf-8")).decode("utf-8")
+    except Exception:
+        return cipher_token
 

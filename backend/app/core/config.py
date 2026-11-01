@@ -34,6 +34,7 @@ class Settings(BaseSettings):
 
     # --- Security ---------------------------------------------------------
     secret_key: str = Field(default="dev-secret-change-me-in-production")
+    token_encryption_key: str = ""
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7
     refresh_token_expire_days: int = 30

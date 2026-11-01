@@ -21,7 +21,30 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from sqlalchemy.types import TypeDecorator
+
 from app.core.database import Base
+from app.core.security import decrypt_token, encrypt_token
+
+
+class EncryptedText(TypeDecorator):
+    """Stores text encrypted at rest with Fernet symmetric encryption (AES-128-CBC + HMAC-SHA256).
+
+    Decodes transparently on read. Backwards compatible with unencrypted legacy rows.
+    """
+
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value: str | None, dialect: Any) -> str | None:
+        if value is None:
+            return None
+        return encrypt_token(value)
+
+    def process_result_value(self, value: str | None, dialect: Any) -> str | None:
+        if value is None:
+            return None
+        return decrypt_token(value)
 
 
 def utcnow() -> datetime:
@@ -97,8 +120,8 @@ class LinkedBroker(Base):
     )
     broker_legal_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     broker_user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    auth_token: Mapped[str | None] = mapped_column(Text, nullable=True)
-    refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    auth_token: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
+    refresh_token: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
     token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
