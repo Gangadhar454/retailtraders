@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     cors_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://retailtraders.in",
+        "https://www.retailtraders.in",
     ]
 
     # --- Upstox -----------------------------------------------------------
