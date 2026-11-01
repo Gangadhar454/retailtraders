@@ -1,5 +1,15 @@
 # Production Nginx reverse proxy for retailtraders.in
 
+# DDoS & Rate Limiting Zones (Shared memory in http context)
+# 10MB zone tracks ~160,000 unique client IP states
+limit_req_zone $binary_remote_addr zone=rt_api_general:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=rt_api_auth:10m rate=5r/s;
+limit_conn_zone $binary_remote_addr zone=rt_addr_conn:10m;
+
+# Return HTTP 429 Too Many Requests on rate limit
+limit_req_status 429;
+limit_conn_status 429;
+
 # Plain HTTP (port 80)
 server {
     listen 80;
@@ -55,8 +65,28 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
-    # Route 1: API requests -> Backend VM via OCI private network
+    # Limit concurrent connections per IP (mitigate Slowloris / connection exhaustion)
+    limit_conn rt_addr_conn 50;
+
+    # Route 1a: Sensitive Auth Endpoints (Brute-force, credential stuffing & OTP spam protection)
+    location /api/v1/auth/ {
+        limit_req zone=rt_api_auth burst=10 nodelay;
+
+        proxy_pass http://10.0.0.129:8000/api/v1/auth/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Route 1b: General API requests -> Backend VM via OCI private network (DDoS & flood protection)
     location /api/ {
+        limit_req zone=rt_api_general burst=60 nodelay;
+
         proxy_pass http://10.0.0.129:8000/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -66,6 +96,13 @@ server {
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
+    }
+
+    # Clean JSON error response for rate limited requests
+    error_page 429 = @rate_limited;
+    location @rate_limited {
+        default_type application/json;
+        return 429 '{"detail":"Too many requests. Please wait a moment before trying again."}';
     }
 
     # Route 2: Web frontend -> Local Next.js container (:3000)

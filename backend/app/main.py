@@ -15,6 +15,7 @@ from sqlalchemy import text
 from app.api.routes import admin, auth, brokers, leaderboard, pnl, upi, users
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine, init_models
+from app.core.rate_limit import RateLimitMiddleware
 from app.services.pnl_sync import sync_all_linked_brokers
 
 logging.basicConfig(
@@ -126,6 +127,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 
 
 @app.middleware("http")
