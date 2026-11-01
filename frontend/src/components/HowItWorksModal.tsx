@@ -136,7 +136,16 @@ export function HowItWorksModal({ open, onClose }: HowItWorksModalProps) {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end border-t border-line bg-surface-alt px-5 py-3">
+            <div className="flex items-center justify-between border-t border-line bg-surface-alt px-5 py-3">
+              <span className="text-[12px] text-ink-soft">
+                Questions?{" "}
+                <a
+                  href="mailto:support@retailtraders.in"
+                  className="font-medium text-brand hover:underline"
+                >
+                  support@retailtraders.in
+                </a>
+              </span>
               <button
                 type="button"
                 onClick={onClose}

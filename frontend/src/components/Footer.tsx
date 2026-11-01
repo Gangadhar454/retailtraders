@@ -92,6 +92,15 @@ export function Footer() {
             >
               Disclaimer
             </Link>
+            <span className="text-line-strong" aria-hidden>
+              &middot;
+            </span>
+            <a
+              href="mailto:support@retailtraders.in"
+              className="transition-colors hover:text-foreground"
+            >
+              Support
+            </a>
           </nav>
         </div>
 

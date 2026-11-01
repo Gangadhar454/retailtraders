@@ -340,6 +340,25 @@ export default function SettingsPage() {
             Open publish history
           </Link>
         </section>
+
+        {/* Support & Inquiries ------------------------------------------- */}
+        <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
+          <div>
+            <h2 className="text-[15px] font-semibold text-foreground">Need Help or Have Feedback?</h2>
+            <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-ink-soft">
+              Have questions about your account, broker verification, or need assistance? Reach out to our team at{" "}
+              <a href="mailto:support@retailtraders.in" className="font-medium text-brand hover:underline">
+                support@retailtraders.in
+              </a>.
+            </p>
+          </div>
+          <a
+            href="mailto:support@retailtraders.in"
+            className="btn-base btn-secondary py-2 text-[12px]"
+          >
+            Contact Support
+          </a>
+        </section>
       </motion.div>
     </div>
   );
