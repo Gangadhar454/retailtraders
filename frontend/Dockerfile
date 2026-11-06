@@ -14,7 +14,9 @@ COPY . .
 # API URL has to be known here rather than at container start.
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_CPU_COUNT=1 \
+    NODE_OPTIONS="--max-old-space-size=1024"
 
 RUN npm run build
 
