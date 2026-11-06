@@ -20,26 +20,33 @@ const robotoMono = Roboto_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "NetPnL — India's Retail Net P&L Today",
+    default: "NetPnL — India's Retail Trader Community & Daily P&L",
     template: "%s · NetPnL",
   },
   description:
-    "Publish your daily profit and loss, get it verified against Upstox or Zerodha, and receive voluntary peer-to-peer UPI gifts from the retail community.",
+    "Did retail traders gain or lose today? A community space where Indian retail traders gather, share their daily trading P&L, and see how retail India traded today.",
   keywords: [
-    "trading",
-    "P&L",
+    "retail traders",
+    "trading community",
+    "India",
+    "daily P&L",
+    "retail sentiment",
+    "trader leaderboard",
     "Upstox",
     "Zerodha",
-    "UPI",
-    "retail traders",
-    "India",
-    "leaderboard",
+    "Angel One",
   ],
   openGraph: {
-    title: "NetPnL — India's Retail Net P&L Today",
+    title: "NetPnL — India's Retail Trader Community & Daily P&L",
     description:
-      "A live counter of India's retail traders' daily profit and loss. Verified where it matters.",
+      "A community space where Indian retail traders gather and share their daily P&L. See whether retail traders gained or lost money today.",
     type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "NetPnL — Did retail traders gain or lose today?",
+    description:
+      "A community space where Indian retail traders gather, share their daily trading P&L, and track overall retail market sentiment.",
   },
 };
 

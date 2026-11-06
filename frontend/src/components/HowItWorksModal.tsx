@@ -196,10 +196,10 @@ export function HowItWorksModal({ open, onClose }: HowItWorksModalProps) {
                         Platform Philosophy
                       </span>
                       <h3 className="text-lg font-bold text-foreground">
-                        India&apos;s Open, Verified Trading Ledger
+                        India&apos;s Retail Trader Community
                       </h3>
                       <p className="mt-2 text-[13.5px] leading-relaxed text-ink-soft">
-                        RetailTraders (NetPnL) was built to solve the epidemic of fake screenshots, inspect-element inspect scams, and unregistered telegram signal groups in the Indian retail trading ecosystem.
+                        RetailTraders (NetPnL) is an open community space built for Indian retail traders to gather after market hours, share their daily P&amp;L, and see whether retail traders gained or lost money today.
                       </p>
                     </div>
 

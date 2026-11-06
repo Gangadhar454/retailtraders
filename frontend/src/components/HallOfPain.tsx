@@ -372,8 +372,13 @@ export function HallOfPain({
             {mode === "cumulative" ? "All-time leaderboard" : "Live leaderboard"}
           </p>
           <h2 className="mt-1 text-xl font-bold tracking-tight text-foreground">
-            Hall of Pain
+            {mode === "cumulative" ? "All-Time Community Leaderboard" : "Today's Community Feed"}
           </h2>
+          <p className="mt-0.5 text-[12px] text-muted">
+            {mode === "cumulative"
+              ? "Cumulative trading returns shared across community traders."
+              : "See how retail traders performed today. Share your trading day."}
+          </p>
           <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-soft">
             {loading
               ? "Loading the leaderboard…"

@@ -50,6 +50,9 @@ export function Nav() {
           <span className="text-[15px] font-bold tracking-tight text-foreground">
             Net<span className="text-brand">PnL</span>
           </span>
+          <span className="hidden sm:inline-block rounded border border-line bg-surface-alt px-2 py-0.5 text-[11px] font-medium text-muted select-none">
+            Retail Trader Community
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

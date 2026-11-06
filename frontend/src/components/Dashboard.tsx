@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { HallOfPain, type LeaderboardFilter, type LeaderboardSort } from "@/components/HallOfPain";
+import { HeroExplainer } from "@/components/HeroExplainer";
+import { HowItWorksModal } from "@/components/HowItWorksModal";
 import { LiveTape } from "@/components/LiveTape";
 import { SentimentBanner } from "@/components/SentimentBanner";
 import { publicApi } from "@/lib/api";
@@ -21,6 +23,7 @@ interface LeaderboardPages {
 export function Dashboard() {
   const [filter, setFilter] = useState<LeaderboardFilter>("all");
   const [sort, setSort] = useState<LeaderboardSort>("recent");
+  const [helpOpen, setHelpOpen] = useState(false);
   const queryKey = `${filter}:${sort}`;
   const queryKeyRef = useRef(queryKey);
   const loadMoreRequestRef = useRef(0);
@@ -164,7 +167,9 @@ export function Dashboard() {
     firstPage.length + additionalCount < board.data.total;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto max-w-7xl space-y-3 px-4 py-3.5 sm:space-y-3.5 sm:px-6 sm:py-5">
+      <HeroExplainer onOpenHelp={() => setHelpOpen(true)} />
+
       <SentimentBanner
         sentiment={sentiment.data}
         loading={sentiment.loading}
@@ -195,6 +200,8 @@ export function Dashboard() {
         loadMoreError={loadMoreError}
         onLoadMore={loadMore}
       />
+
+      <HowItWorksModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
