@@ -61,7 +61,7 @@ class UpdateProfileRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
+    current_password: str | None = None
     new_password: str = Field(min_length=8, max_length=128)
 
     @field_validator("new_password")
@@ -109,6 +109,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=10, max_length=512)
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str = Field(description="Google ID Token JWT from Google Identity Services")
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
@@ -142,6 +146,8 @@ class CurrentUser(PublicUser):
     upi_verified_name: str | None = None
     linked_brokers: list[LinkedBrokerOut] = Field(default_factory=list)
     has_upi_id: bool = False
+    has_password: bool = True
+    is_manual_blocked: bool = False
 
 
 # --------------------------------------------------------------------------
@@ -175,18 +181,20 @@ class BrokerCallbackRequest(BaseModel):
 # P&L
 # --------------------------------------------------------------------------
 class PnLCreateRequest(BaseModel):
-    # Support high-volume traders and multi-year cumulative aggregations up to +/- 10 Crore Crore (1 Quadrillion INR)
-    net_pnl: float = Field(ge=-1_000_000_000_000_000, le=1_000_000_000_000_000)
+    # Manual posting is strictly restricted to +/- 99,99,999 INR (max 99.99 Lakhs)
+    net_pnl: float = Field(ge=-9_999_999, le=9_999_999, description="Manual P&L restricted to +/- 99,99,999 INR")
     date: date_type | None = None
     notes: str | None = Field(default=None, max_length=280)
-    trade_count: int = Field(default=0, ge=0, le=10_000)
+    trade_count: int = Field(default=0, ge=0, le=1_000)
     win_rate: float | None = Field(default=None, ge=0, le=100)
 
     @field_validator("net_pnl")
     @classmethod
-    def _not_zero(cls, value: float) -> float:
+    def _validate_net_pnl(cls, value: float) -> float:
         if value == 0:
             raise ValueError("P&L cannot be exactly zero")
+        if value < -9_999_999 or value > 9_999_999:
+            raise ValueError("Manual P&L must be between -₹99,99,999 and +₹99,99,999")
         return value
 
 
@@ -394,3 +402,43 @@ class DonateEligibility(BaseModel):
     upi_id: str | None = None
     resolved_name: str | None = None
     reason: str | None = None
+
+
+class AdminUserPostingOut(BaseModel):
+    record_id: uuid.UUID
+    user_id: uuid.UUID
+    username: str
+    display_name: str
+    email: str
+    net_pnl: float
+    is_verified: bool
+    source: PnLSource
+    broker_source: str | None = None
+    has_manual_entry: bool = False
+    manual_net_pnl: float | None = None
+    trade_count: int = 0
+    win_rate: float | None = None
+    notes: str | None = None
+    date: date_type
+    created_at: UtcDateTime
+    updated_at: UtcDateTime | None = None
+    is_manual_blocked: bool = False
+
+
+class AdminUserOut(BaseModel):
+    user_id: uuid.UUID
+    username: str
+    display_name: str
+    email: str
+    created_at: UtcDateTime
+    is_active: bool
+    is_manual_blocked: bool
+    is_verified_publisher: bool
+    total_posts: int = 0
+    manual_posts: int = 0
+    verified_posts: int = 0
+    last_post_date: date_type | None = None
+
+
+class UserBlockManualRequest(BaseModel):
+    blocked: bool

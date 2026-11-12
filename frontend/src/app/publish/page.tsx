@@ -14,6 +14,7 @@ import type { BrokerOption, LinkedBroker, PublishDay, PublishItem } from "@/lib/
 type Mode = "manual" | "broker";
 
 const PAGE_SIZE = 10;
+const MAX_MANUAL_PNL = 9_999_999;
 
 const FALLBACK_BROKERS: BrokerOption[] = [
   {
@@ -252,9 +253,21 @@ function PublishView() {
     setError(null);
     setSuccess(null);
 
+    if (user?.is_manual_blocked) {
+      setError("Your account is blocked from posting manual P&L entries. Please connect a verified broker.");
+      setBusy(false);
+      return;
+    }
+
     const value = Number(amount);
     if (!Number.isFinite(value) || value === 0) {
       setError("Enter a non-zero P&L amount (e.g. -12500 for a loss or 15000 for a profit)");
+      setBusy(false);
+      return;
+    }
+
+    if (value < -MAX_MANUAL_PNL || value > MAX_MANUAL_PNL) {
+      setError("Manual P&L must be between -₹99,99,999 and +₹99,99,999.");
       setBusy(false);
       return;
     }
@@ -424,6 +437,35 @@ function PublishView() {
         {/* Manual --------------------------------------------------------- */}
         <AnimatePresence mode="wait">
           {effectiveMode === "manual" ? (
+            user?.is_manual_blocked ? (
+              <motion.div
+                key="manual-blocked"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="card mt-4 p-6 border-loss/30 bg-loss-soft/20 space-y-3"
+              >
+                <div className="flex items-center gap-2 text-loss font-bold text-sm">
+                  <span className="text-lg">🚫</span>
+                  <span>Manual P&amp;L Posting Blocked</span>
+                </div>
+                <p className="text-[13px] text-ink-soft leading-relaxed">
+                  An administrator has restricted your account from posting manual (self-reported) P&amp;L entries.
+                </p>
+                <p className="text-[12.5px] text-muted">
+                  You can still share verified performance by syncing your connected broker in the <strong>Verified Broker</strong> tab.
+                </p>
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setMode("broker")}
+                    className="btn-base btn-primary text-xs px-3.5 py-1.5"
+                  >
+                    🛡️ Switch to Verified Broker
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
             <motion.form
               key="manual"
               onSubmit={submitManual}
@@ -458,7 +500,7 @@ function PublishView() {
                     htmlFor="amount"
                     className="mb-1.5 block text-[12px] font-medium text-ink-soft"
                   >
-                    Net P&amp;L (₹) &mdash; use a minus sign for a loss (e.g. -12500)
+                    Net P&amp;L (₹) &mdash; use a minus sign for a loss (max &plusmn;&#8377;99,99,999)
                   </label>
                   <div className="relative">
                     <span
@@ -481,17 +523,23 @@ function PublishView() {
                             ? "text-profit border-profit/50 focus:border-profit"
                             : "text-foreground"
                       }`}
-                      placeholder="-12500"
+                      placeholder="-12500 (max ±99,99,999)"
                     />
                   </div>
                   {amount && amount !== "-" && amount !== "+" && !isNaN(Number(amount)) && Number(amount) !== 0 && (
-                    <p
-                      className={`numeric mt-1.5 text-[13px] font-semibold ${
-                        Number(amount) < 0 ? "text-loss" : "text-profit"
-                      }`}
-                    >
-                      Publishing: {formatSignedINR(Number(amount))}
-                    </p>
+                    Math.abs(Number(amount)) > MAX_MANUAL_PNL ? (
+                      <p className="numeric mt-1.5 text-[12.5px] font-semibold text-loss">
+                        ⚠️ Limit exceeded: Manual P&amp;L cannot exceed &plusmn;&#8377;99,99,999.
+                      </p>
+                    ) : (
+                      <p
+                        className={`numeric mt-1.5 text-[13px] font-semibold ${
+                          Number(amount) < 0 ? "text-loss" : "text-profit"
+                        }`}
+                      >
+                        Publishing: {formatSignedINR(Number(amount))}
+                      </p>
+                    )
                   )}
                 </div>
 
@@ -534,7 +582,7 @@ function PublishView() {
 
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || (Boolean(amount) && Math.abs(Number(amount)) > MAX_MANUAL_PNL)}
                 className="btn-base btn-primary mt-5"
               >
                 {busy
@@ -546,6 +594,7 @@ function PublishView() {
                     : "Publish self-reported P&L"}
               </button>
             </motion.form>
+            )
           ) : (
             /* Broker ------------------------------------------------------ */
             <motion.div

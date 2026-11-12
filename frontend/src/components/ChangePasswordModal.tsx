@@ -8,9 +8,16 @@ import { ApiError, authApi } from "@/lib/api";
 interface ChangePasswordModalProps {
   open: boolean;
   onClose: () => void;
+  hasPassword?: boolean;
+  onSuccess?: () => void;
 }
 
-export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
+export function ChangePasswordModal({
+  open,
+  onClose,
+  hasPassword = true,
+  onSuccess,
+}: ChangePasswordModalProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -42,6 +49,10 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
     e.preventDefault();
     setMessage(null);
 
+    if (hasPassword && !currentPassword) {
+      setMessage({ kind: "error", text: "Please enter your current password" });
+      return;
+    }
     if (newPassword !== confirmNewPassword) {
       setMessage({ kind: "error", text: "New passwords do not match" });
       return;
@@ -60,18 +71,31 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
 
     setBusy(true);
     try {
-      await authApi.changePassword({
-        current_password: currentPassword,
+      const res = await authApi.changePassword({
+        current_password: hasPassword ? currentPassword : null,
         new_password: newPassword,
       });
-      setMessage({ kind: "ok", text: "Password updated successfully!" });
+      setMessage({
+        kind: "ok",
+        text:
+          res.message ||
+          (hasPassword
+            ? "Password updated successfully!"
+            : "Password set successfully!"),
+      });
+      onSuccess?.();
       setTimeout(() => {
         handleClose();
       }, 1200);
     } catch (err) {
       setMessage({
         kind: "error",
-        text: err instanceof ApiError ? err.message : "Failed to change password",
+        text:
+          err instanceof ApiError
+            ? err.message
+            : hasPassword
+            ? "Failed to change password"
+            : "Failed to set password",
       });
     } finally {
       setBusy(false);
@@ -100,7 +124,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
             <div className="card p-5 sm:p-6 shadow-xl">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[16px] font-semibold text-foreground">
-                  Change password
+                  {hasPassword ? "Change password" : "Set password"}
                 </h2>
                 <button
                   type="button"
@@ -113,28 +137,32 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
               </div>
 
               <p className="text-[13px] text-ink-soft mb-5">
-                Enter your current password and choose a new one with at least 8 characters.
+                {hasPassword
+                  ? "Enter your current password and choose a new one with at least 8 characters."
+                  : "Choose a secure password with at least 8 characters (letters and numbers) to enable email login."}
               </p>
 
               <form onSubmit={onSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="modalCurrentPassword"
-                    className="mb-1.5 block text-[12px] font-medium text-ink-soft"
-                  >
-                    Current password
-                  </label>
-                  <input
-                    id="modalCurrentPassword"
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="input-base"
-                    placeholder="Enter current password"
-                  />
-                </div>
+                {hasPassword && (
+                  <div>
+                    <label
+                      htmlFor="modalCurrentPassword"
+                      className="mb-1.5 block text-[12px] font-medium text-ink-soft"
+                    >
+                      Current password
+                    </label>
+                    <input
+                      id="modalCurrentPassword"
+                      type="password"
+                      required
+                      autoComplete="current-password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="input-base"
+                      placeholder="Enter current password"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label
@@ -203,10 +231,21 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
                   </button>
                   <button
                     type="submit"
-                    disabled={busy || !currentPassword || !newPassword || !confirmNewPassword}
+                    disabled={
+                      busy ||
+                      (hasPassword && !currentPassword) ||
+                      !newPassword ||
+                      !confirmNewPassword
+                    }
                     className="btn-base btn-primary py-2 text-[13px]"
                   >
-                    {busy ? "Updating…" : "Update password"}
+                    {busy
+                      ? hasPassword
+                        ? "Updating…"
+                        : "Setting…"
+                      : hasPassword
+                      ? "Update password"
+                      : "Set password"}
                   </button>
                 </div>
               </form>
@@ -217,4 +256,3 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
     </AnimatePresence>
   );
 }
-

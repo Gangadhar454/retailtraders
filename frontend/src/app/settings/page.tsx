@@ -197,9 +197,13 @@ export default function SettingsPage() {
         {/* Password & Security ----------------------------------------- */}
         <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
           <div>
-            <h2 className="text-[15px] font-semibold text-foreground">Password &amp; Security</h2>
+            <h2 className="text-[15px] font-semibold text-foreground">
+              {user.has_password ? "Password & Security" : "Set Account Password"}
+            </h2>
             <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-ink-soft">
-              Ensure your account is protected with a secure password.
+              {user.has_password
+                ? "Ensure your account is protected with a secure password."
+                : "You signed in with Google and do not have a password set. Set a password to enable email & password sign-in."}
             </p>
           </div>
           <button
@@ -207,13 +211,15 @@ export default function SettingsPage() {
             onClick={() => setShowPasswordModal(true)}
             className="btn-base btn-secondary py-2 text-[13px]"
           >
-            Change password
+            {user.has_password ? "Change password" : "Set password"}
           </button>
         </section>
 
-        {/* Change Password Modal Popup */}
+        {/* Change / Set Password Modal Popup */}
         <ChangePasswordModal
           open={showPasswordModal}
+          hasPassword={user.has_password ?? true}
+          onSuccess={refresh}
           onClose={() => setShowPasswordModal(false)}
         />
 

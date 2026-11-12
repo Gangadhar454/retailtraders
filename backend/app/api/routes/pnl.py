@@ -77,6 +77,18 @@ async def create_manual_pnl(
     The daily net P&L is recomputed as the sum of all broker fetches plus
     the manual amount. A record with any manual entry is never verified.
     """
+    if getattr(user, "is_manual_blocked", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been blocked from posting manual P&L entries by the administrator.",
+        )
+
+    if abs(payload.net_pnl) > 9_999_999:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Manual P&L must be between -₹99,99,999 and +₹99,99,999",
+        )
+
     target = payload.date or calendar_day_for()
 
     record = await db.scalar(

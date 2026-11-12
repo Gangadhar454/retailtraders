@@ -73,6 +73,24 @@ async def init_models() -> None:
             pass
         try:
             if settings.database_url.startswith("sqlite"):
+                await conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(128)"))
+            else:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(128) UNIQUE"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url TEXT"))
+        except Exception:
+            pass
+        try:
+            if settings.database_url.startswith("sqlite"):
+                await conn.execute(text("ALTER TABLE users ADD COLUMN is_manual_blocked BOOLEAN DEFAULT 0"))
+            else:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN is_manual_blocked BOOLEAN DEFAULT FALSE"))
+        except Exception:
+            pass
+        try:
+            if settings.database_url.startswith("sqlite"):
                 await conn.execute(text("ALTER TABLE linked_brokers ADD COLUMN is_simulated BOOLEAN DEFAULT 0"))
             else:
                 await conn.execute(text("ALTER TABLE linked_brokers ADD COLUMN is_simulated BOOLEAN DEFAULT FALSE"))

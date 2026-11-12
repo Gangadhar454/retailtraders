@@ -24,9 +24,11 @@ from app.core.security import (
 )
 from app.models import LinkedBroker, PasswordResetOTP, User
 from app.services.email import send_otp_email
+from app.services.google_auth import verify_google_credential
 from app.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
+    GoogleAuthRequest,
     VerifyOTPRequest,
     ResetPasswordWithOTPRequest,
     CurrentUser as CurrentUserSchema,
@@ -104,6 +106,8 @@ def _public_user(user: User) -> CurrentUserSchema:
         linked_brokers=brokers,
         has_upi_id=bool(user.verified_upi_id),
         is_verified_publisher=any(b.is_active for b in user.linked_brokers),
+        has_password=bool(user.password_hash),
+        is_manual_blocked=bool(getattr(user, "is_manual_blocked", False)),
     )
 
 
@@ -158,6 +162,77 @@ async def login(payload: UserLoginRequest, db: DbSession) -> TokenPair:
     return _token_pair(user)
 
 
+@router.post("/google", response_model=TokenPair)
+async def google_login(payload: GoogleAuthRequest, db: DbSession) -> TokenPair:
+    try:
+        claims = await verify_google_credential(payload.credential)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Google authentication failed: {exc}",
+        ) from exc
+
+    email = claims.get("email", "").lower().strip()
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account does not have a valid email address",
+        )
+
+    google_sub = str(claims.get("sub", ""))
+    name = (claims.get("name") or claims.get("given_name") or email.split("@")[0]).strip()
+    picture = claims.get("picture")
+
+    # 1. Lookup by google_id
+    user = await db.scalar(select(User).where(User.google_id == google_sub))
+    if user is not None:
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="This account has been disabled")
+        user.last_login_at = datetime.now(timezone.utc)
+        if picture and not user.avatar_url:
+            user.avatar_url = picture
+        await db.commit()
+        return _token_pair(user)
+
+    # 2. Lookup by email to link existing user
+    user = await db.scalar(select(User).where(User.email == email))
+    if user is not None:
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="This account has been disabled")
+        user.google_id = google_sub
+        user.last_login_at = datetime.now(timezone.utc)
+        if picture and not user.avatar_url:
+            user.avatar_url = picture
+        await db.commit()
+        return _token_pair(user)
+
+    # 3. New user registration
+    candidate_username = await _unique_username(db, _normalise_username(name))
+    new_user = User(
+        user_id=uuid.uuid4(),
+        email=email,
+        password_hash=None,
+        display_name=name[:64] or "Trader",
+        username=candidate_username,
+        google_id=google_sub,
+        avatar_url=picture,
+        avatar_seed=secrets.token_hex(2),
+        last_login_at=datetime.now(timezone.utc),
+    )
+    db.add(new_user)
+    try:
+        await db.commit()
+        await db.refresh(new_user)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not create user account",
+        ) from exc
+
+    return _token_pair(new_user)
+
+
 @router.post("/refresh", response_model=TokenPair)
 async def refresh(payload: RefreshRequest, db: DbSession) -> TokenPair:
     claims = decode_token(payload.refresh_token, "refresh")
@@ -199,20 +274,23 @@ async def change_password(
     current_user: CurrentUser,
     db: DbSession,
 ) -> dict[str, str]:
-    if not verify_password(payload.current_password, current_user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
-        )
-    if payload.current_password == payload.new_password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password cannot be the same as current password",
-        )
+    had_password = bool(current_user.password_hash)
+    if had_password:
+        if not payload.current_password or not verify_password(payload.current_password, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect",
+            )
+        if payload.current_password == payload.new_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password cannot be the same as current password",
+            )
 
     current_user.password_hash = hash_password(payload.new_password)
     await db.commit()
-    return {"message": "Password changed successfully"}
+    msg = "Password changed successfully" if had_password else "Password set successfully"
+    return {"message": msg}
 
 @router.post("/forgot-password/request")
 async def forgot_password_request(

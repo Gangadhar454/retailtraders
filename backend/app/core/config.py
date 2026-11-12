@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     penny_drop_amount: int = 1
     penny_drop_max_attempts: int = 3
 
+    # --- Google OAuth -----------------------------------------------------
+    google_client_id: str = "329472900840-e86f17v1scnkckhj35v91gufboir97f3.apps.googleusercontent.com"
+
     # --- Public site metadata --------------------------------------------
     public_site_url: str = "http://localhost:3000"
     # Where this API is reachable from a browser (used for mock broker consent).

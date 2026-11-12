@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 
-import { adminApi, getAdminToken, setAdminToken, clearAdminToken, type AdminMetrics, type BurstTrade } from "@/lib/api";
-import { formatRelative, formatSignedINR } from "@/lib/format";
+import { adminApi, getAdminToken, setAdminToken, clearAdminToken, type AdminMetrics, type AdminPosting, type AdminUser, type BurstTrade } from "@/lib/api";
+import { formatPostDateTime, formatSignedINR } from "@/lib/format";
 
 
 export default function AdminPage() {
@@ -19,6 +19,17 @@ export default function AdminPage() {
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"daily" | "cumulative">("daily");
+
+  const [realPostings, setRealPostings] = useState<AdminPosting[]>([]);
+  const [postingsLoading, setPostingsLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const [realUsers, setRealUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [blockingUserId, setBlockingUserId] = useState<string | null>(null);
 
   const [burstCount, setBurstCount] = useState<number>(5);
   const [bursting, setBursting] = useState(false);
@@ -72,6 +83,83 @@ export default function AdminPage() {
     }
   }, [token, loadMetrics]);
 
+  const loadRealPostings = useCallback(async (authToken: string, isAllTime: boolean) => {
+    setPostingsLoading(true);
+    try {
+      const data = await adminApi.realPostings(authToken, undefined, isAllTime);
+      setRealPostings(data);
+    } catch {
+      // Retain existing state on transient fetch error
+    } finally {
+      setPostingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      void loadRealPostings(token, activeTab === "cumulative");
+    }
+  }, [token, activeTab, loadRealPostings]);
+
+  const loadRealUsers = useCallback(async (authToken: string) => {
+    setUsersLoading(true);
+    try {
+      const data = await adminApi.realUsers(authToken);
+      setRealUsers(data);
+    } catch {
+      // Retain existing state on transient fetch error
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      void loadRealUsers(token);
+    }
+  }, [token, loadRealUsers]);
+
+  async function handleToggleBlock(userId: string, blocked: boolean, username: string) {
+    if (!token) return;
+    setBlockingUserId(userId);
+    try {
+      const res = await adminApi.toggleUserManualBlock(token, userId, blocked);
+      setRealUsers((prev) =>
+        prev.map((u) => (u.user_id === userId ? { ...u, is_manual_blocked: res.is_manual_blocked } : u))
+      );
+      setRealPostings((prev) =>
+        prev.map((p) => (p.user_id === userId ? { ...p, is_manual_blocked: res.is_manual_blocked } : p))
+      );
+      setActionMessage(
+        res.is_manual_blocked
+          ? `User @${username} is now BLOCKED from posting manual entries.`
+          : `User @${username} is now UNBLOCKED for manual entries.`
+      );
+      setTimeout(() => setActionMessage(null), 5000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to toggle manual block status.");
+    } finally {
+      setBlockingUserId(null);
+    }
+  }
+
+  async function handleDeletePosting(recordId: string, username: string) {
+    if (!token) return;
+    setDeletingId(recordId);
+    try {
+      const res = await adminApi.deletePosting(token, recordId);
+      setRealPostings((prev) => prev.filter((p) => p.record_id !== recordId));
+      setMetrics(res.metrics);
+      setConfirmDeleteId(null);
+      setActionMessage(`Posting from @${username} deleted successfully.`);
+      setTimeout(() => setActionMessage(null), 5000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete posting.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     if (!usernameInput || !passwordInput) return;
@@ -94,6 +182,11 @@ export default function AdminPage() {
     setToken(null);
     setMetrics(null);
     setBurstResult(null);
+    setRealPostings([]);
+    setRealUsers([]);
+    setUserSearch("");
+    setConfirmDeleteId(null);
+    setActionMessage(null);
   }
 
   async function handleBurst(count: number) {
@@ -233,6 +326,16 @@ export default function AdminPage() {
   // --------------------------------------------------------------------------
   const currentMetrics = metrics ? (activeTab === "daily" ? metrics.daily : metrics.cumulative) : null;
 
+  const filteredUsers = realUsers.filter((u) => {
+    if (!userSearch.trim()) return true;
+    const term = userSearch.toLowerCase().trim();
+    return (
+      u.username.toLowerCase().includes(term) ||
+      u.display_name.toLowerCase().includes(term) ||
+      u.email.toLowerCase().includes(term)
+    );
+  });
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       {/* Top Header */}
@@ -270,12 +373,18 @@ export default function AdminPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => token && loadMetrics(token)}
-            disabled={metricsLoading}
+            onClick={() => {
+              if (token) {
+                void loadMetrics(token);
+                void loadRealPostings(token, activeTab === "cumulative");
+                void loadRealUsers(token);
+              }
+            }}
+            disabled={metricsLoading || postingsLoading || usersLoading}
             className="btn-base btn-secondary text-xs px-3 py-1.5"
-            title="Refresh metrics"
+            title="Refresh metrics, postings & users"
           >
-            {metricsLoading ? "Refreshing..." : "↻ Refresh"}
+            {metricsLoading || postingsLoading || usersLoading ? "Refreshing..." : "↻ Refresh"}
           </button>
 
           <button
@@ -433,6 +542,367 @@ export default function AdminPage() {
           </p>
         </div>
       </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* REAL USER POSTINGS OF THE DAY (WITH SUSPICIOUS POST DELETION) */}
+      {/* -------------------------------------------------------------------- */}
+      <section className="mt-8 card p-5 sm:p-6 border-line bg-surface shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-profit-soft border border-profit/30 text-sm">
+                🛡️
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-foreground">
+                    {activeTab === "daily" ? "Real User Postings of the Day" : "All-Time Real User Postings"}
+                  </h2>
+                  <span className="rounded-full bg-surface-alt border border-line px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                    {realPostings.length} {realPostings.length === 1 ? "posting" : "postings"}
+                  </span>
+                </div>
+                <p className="text-[12px] text-muted">
+                  Live submissions by genuine human traders. Review session details and delete any suspicious entries.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => token && loadRealPostings(token, activeTab === "cumulative")}
+            disabled={postingsLoading}
+            className="btn-base btn-secondary text-xs px-3 py-1.5"
+            title="Refresh real user postings"
+          >
+            {postingsLoading ? "Loading..." : "↻ Refresh Postings"}
+          </button>
+        </div>
+
+        {actionMessage && (
+          <div className="mt-4 rounded-md border border-profit/30 bg-profit-soft p-3 text-xs font-medium text-profit">
+            ✓ {actionMessage}
+          </div>
+        )}
+
+        {postingsLoading ? (
+          <div className="mt-4 space-y-3">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="h-16 rounded-lg bg-surface-alt animate-pulse" />
+            ))}
+          </div>
+        ) : realPostings.length === 0 ? (
+          <div className="mt-6 rounded-lg border border-dashed border-line p-8 text-center">
+            <span className="text-2xl">🌱</span>
+            <p className="mt-2 text-xs font-semibold text-foreground">
+              No real user postings {activeTab === "daily" ? "today yet" : "on record"}.
+            </p>
+            <p className="mt-1 text-[11.5px] text-muted">
+              When authentic users publish manual or broker-verified P&amp;L, their entries will show here with one-click deletion.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 divide-y divide-line/60">
+            {realPostings.map((p) => {
+              const isConfirming = confirmDeleteId === p.record_id;
+              const isDeleting = deletingId === p.record_id;
+
+              return (
+                <div
+                  key={p.record_id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3.5 transition hover:bg-surface-alt/40 px-2 rounded"
+                >
+                  {/* Trader Information */}
+                  <div className="flex items-start gap-3 min-w-[200px]">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft border border-brand/20 text-xs font-bold text-brand">
+                      {p.display_name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-xs text-foreground">
+                          {p.display_name}
+                        </span>
+                        <Link
+                          href={`/u/${encodeURIComponent(p.username)}`}
+                          target="_blank"
+                          className="text-[11.5px] text-muted hover:text-brand hover:underline"
+                        >
+                          @{p.username}
+                        </Link>
+                        {p.is_manual_blocked && (
+                          <span className="badge text-[10px] text-loss border-loss/30 bg-loss-soft font-semibold">
+                            🚫 Blocked
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted">{p.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Verification Source & Trades */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {p.is_verified ? (
+                      <span className="inline-flex items-center gap-1 rounded border border-brand/30 bg-brand-soft px-2 py-0.5 text-[10.5px] font-semibold text-brand">
+                        🛡️ Verified ({p.broker_source ?? p.source})
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded border border-line bg-surface-alt px-2 py-0.5 text-[10.5px] font-medium text-ink-soft">
+                        ✍️ Manual Entry
+                      </span>
+                    )}
+
+                    <span className="badge font-mono text-[10.5px]">
+                      {p.trade_count} trades
+                    </span>
+
+                    {p.notes && (
+                      <span className="text-muted italic max-w-xs truncate text-[11px] hidden md:inline" title={p.notes}>
+                        “{p.notes}”
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Time & PnL */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span
+                        className={`numeric font-bold text-sm block ${
+                          p.net_pnl < 0 ? "text-loss" : "text-profit"
+                        }`}
+                      >
+                        {formatSignedINR(p.net_pnl)}
+                      </span>
+                      <span className="text-[10.5px] text-muted">
+                        {formatPostDateTime(p.date, p.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Action buttons: Block manual and Delete */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBlock(p.user_id, !p.is_manual_blocked, p.username)}
+                        disabled={blockingUserId === p.user_id}
+                        className={`btn-base text-[11px] px-2 py-1 font-medium border transition ${
+                          p.is_manual_blocked
+                            ? "border-profit/30 text-profit hover:bg-profit-soft"
+                            : "border-loss/30 text-loss hover:bg-loss-soft"
+                        }`}
+                        title={
+                          p.is_manual_blocked
+                            ? "Unblock manual entry for this user"
+                            : "Block this user from posting manual entries"
+                        }
+                      >
+                        {blockingUserId === p.user_id
+                          ? "..."
+                          : p.is_manual_blocked
+                          ? "✓ Unblock"
+                          : "🚫 Block"}
+                      </button>
+
+                      {isConfirming ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePosting(p.record_id, p.username)}
+                            disabled={isDeleting}
+                            className="btn-base bg-loss text-white text-[11px] px-2.5 py-1 font-bold shadow-xs hover:bg-loss/90"
+                          >
+                            {isDeleting ? "Deleting..." : "Confirm Delete"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            disabled={isDeleting}
+                            className="btn-base btn-secondary text-[11px] px-2 py-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(p.record_id)}
+                          className="btn-base btn-secondary text-loss border-loss/30 hover:bg-loss-soft text-xs px-2.5 py-1 font-medium transition"
+                          title="Delete suspicious posting"
+                        >
+                          🗑️ Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* REAL USERS DIRECTORY & MANUAL ENTRY BLOCK CONTROLS */}
+      {/* -------------------------------------------------------------------- */}
+      <section className="mt-8 card p-5 sm:p-6 border-line bg-surface shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div className="flex items-center gap-2">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-soft border border-brand/30 text-sm">
+              👥
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-foreground">
+                  Registered Real Users
+                </h2>
+                <span className="rounded-full bg-surface-alt border border-line px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                  {realUsers.length} {realUsers.length === 1 ? "user" : "users"}
+                </span>
+              </div>
+              <p className="text-[12px] text-muted">
+                Genuine human trader accounts. Manage manual posting permissions and block suspicious traders.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Search username, name, email..."
+              className="input-base text-xs py-1.5 px-3 w-48 sm:w-60"
+            />
+            <button
+              type="button"
+              onClick={() => token && loadRealUsers(token)}
+              disabled={usersLoading}
+              className="btn-base btn-secondary text-xs px-3 py-1.5"
+              title="Refresh users directory"
+            >
+              {usersLoading ? "Loading..." : "↻ Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {usersLoading ? (
+          <div className="mt-4 space-y-3">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="h-16 rounded-lg bg-surface-alt animate-pulse" />
+            ))}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="mt-6 rounded-lg border border-dashed border-line p-8 text-center">
+            <span className="text-2xl">🔍</span>
+            <p className="mt-2 text-xs font-semibold text-foreground">
+              {userSearch ? "No real users match your search." : "No registered real users found."}
+            </p>
+            {userSearch && (
+              <button
+                type="button"
+                onClick={() => setUserSearch("")}
+                className="btn-base btn-secondary text-xs mt-2 px-3 py-1"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4 divide-y divide-line/60">
+            {filteredUsers.map((u) => {
+              const isBlocking = blockingUserId === u.user_id;
+
+              return (
+                <div
+                  key={u.user_id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3.5 transition hover:bg-surface-alt/40 px-2 rounded"
+                >
+                  {/* Trader Profile */}
+                  <div className="flex items-center gap-3 min-w-[200px]">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft border border-brand/20 text-xs font-bold text-brand">
+                      {u.display_name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-xs text-foreground">
+                          {u.display_name}
+                        </span>
+                        <Link
+                          href={`/u/${encodeURIComponent(u.username)}`}
+                          target="_blank"
+                          className="text-[11.5px] text-muted hover:text-brand hover:underline"
+                        >
+                          @{u.username}
+                        </Link>
+                      </div>
+                      <p className="text-[11px] text-muted">{u.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Broker & Activity stats */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {u.is_verified_publisher ? (
+                      <span className="inline-flex items-center gap-1 rounded border border-brand/30 bg-brand-soft px-2 py-0.5 text-[10.5px] font-semibold text-brand">
+                        🛡️ Broker Linked
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded border border-line bg-surface-alt px-2 py-0.5 text-[10.5px] font-medium text-ink-soft">
+                        No Broker Linked
+                      </span>
+                    )}
+
+                    <span className="badge font-mono text-[10.5px]">
+                      {u.total_posts} total ({u.manual_posts} manual, {u.verified_posts} verified)
+                    </span>
+
+                    {u.last_post_date && (
+                      <span className="text-[11px] text-muted hidden md:inline">
+                        Last: {u.last_post_date}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Block status badge and Action button */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div>
+                      {u.is_manual_blocked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border border-loss/30 bg-loss-soft text-loss">
+                          🚫 Manual Blocked
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border border-profit/30 bg-profit-soft text-profit">
+                          ✓ Allowed
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleBlock(u.user_id, !u.is_manual_blocked, u.username)}
+                      disabled={isBlocking}
+                      className={`btn-base text-xs px-2.5 py-1 font-medium transition border ${
+                        u.is_manual_blocked
+                          ? "btn-secondary border-profit/40 text-profit hover:bg-profit-soft"
+                          : "btn-secondary border-loss/40 text-loss hover:bg-loss-soft"
+                      }`}
+                      title={
+                        u.is_manual_blocked
+                          ? "Allow manual posting for this user"
+                          : "Block this user from posting manual entries"
+                      }
+                    >
+                      {isBlocking
+                        ? "Updating..."
+                        : u.is_manual_blocked
+                        ? "✓ Unblock Manual"
+                        : "🚫 Block Manual"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* -------------------------------------------------------------------- */}
       {/* INSTANT BURST ENGINE SECTION */}

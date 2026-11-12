@@ -33,6 +33,8 @@ export interface CurrentUser extends PublicUser {
   upi_verified_name: string | null;
   linked_brokers: LinkedBroker[];
   has_upi_id: boolean;
+  has_password?: boolean;
+  is_manual_blocked?: boolean;
 }
 
 export interface TokenPair {

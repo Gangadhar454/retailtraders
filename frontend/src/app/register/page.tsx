@@ -6,11 +6,12 @@ import { useState, type FormEvent } from "react";
 import { motion } from "motion/react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { ApiError } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,6 +39,19 @@ export default function RegisterPage() {
     }
   }
 
+  async function handleGoogleSuccess(credential: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await loginWithGoogle(credential);
+      router.push("/settings");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not sign in with Google");
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex min-h-[78vh] max-w-7xl items-center justify-center px-4 py-12 sm:px-6">
       <motion.div
@@ -52,7 +66,24 @@ export default function RegisterPage() {
           Publish page and fetch the day&apos;s figure.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <div className="mt-6">
+          <GoogleSignInButton
+            text="signup_with"
+            disabled={busy}
+            onSuccess={handleGoogleSuccess}
+            onError={(msg) => setError(msg)}
+          />
+
+          <div className="relative my-5 flex items-center justify-center">
+            <div className="flex-1 border-t border-border/60" />
+            <span className="px-3 text-[11px] font-medium uppercase tracking-wider text-ink-muted shrink-0 whitespace-nowrap">
+              or
+            </span>
+            <div className="flex-1 border-t border-border/60" />
+          </div>
+        </div>
+
+        <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label
               htmlFor="displayName"

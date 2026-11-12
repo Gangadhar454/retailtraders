@@ -7,14 +7,21 @@ and instant burst simulation controls.
 from __future__ import annotations
 
 import secrets
+import uuid
+from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import delete, select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession, TokenDep
 from app.core.config import settings
 from app.core.security import create_access_token, decode_token
+from app.models import BrokerPnLDaily, PnLRecord, User
+from app.schemas import AdminUserOut, AdminUserPostingOut, UserBlockManualRequest
+from app.services.pnl_sync import calendar_day_for
 from app.simulation.engine import (
     get_admin_metrics,
     purge_simulated_data,
@@ -155,3 +162,158 @@ async def admin_purge_simulation(
         "metrics": metrics,
     }
 
+
+@router.get("/real-postings", response_model=list[AdminUserPostingOut])
+async def get_real_postings(
+    admin: AdminDep,
+    db: DbSession,
+    target_date: date | None = None,
+    all_time: bool = Query(default=False),
+) -> list[AdminUserPostingOut]:
+    """Fetch real user postings for a given date (defaults to today in IST) or all-time."""
+    query = (
+        select(PnLRecord)
+        .join(PnLRecord.user)
+        .options(selectinload(PnLRecord.user))
+        .where(
+            PnLRecord.is_simulated.is_(False),
+            User.is_simulated.is_(False),
+        )
+    )
+    if not all_time:
+        target = target_date or calendar_day_for()
+        query = query.where(PnLRecord.date == target).order_by(PnLRecord.created_at.desc())
+    else:
+        query = query.order_by(PnLRecord.date.desc(), PnLRecord.created_at.desc()).limit(100)
+
+    records = (await db.scalars(query)).all()
+
+    return [
+        AdminUserPostingOut(
+            record_id=r.record_id,
+            user_id=r.user_id,
+            username=r.user.username,
+            display_name=r.user.display_name,
+            email=r.user.email,
+            net_pnl=r.net_pnl,
+            is_verified=r.is_verified,
+            source=r.source,
+            broker_source=r.broker_source,
+            has_manual_entry=r.has_manual_entry,
+            manual_net_pnl=r.manual_net_pnl,
+            trade_count=r.trade_count,
+            win_rate=r.win_rate,
+            notes=r.notes,
+            date=r.date,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+            is_manual_blocked=bool(getattr(r.user, "is_manual_blocked", False)),
+        )
+        for r in records
+    ]
+
+
+@router.delete("/postings/{record_id}")
+async def admin_delete_posting(
+    record_id: uuid.UUID,
+    admin: AdminDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Deletes a suspicious posting record and associated daily broker records for that day."""
+    record = await db.scalar(
+        select(PnLRecord).where(PnLRecord.record_id == record_id)
+    )
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Posting record not found",
+        )
+
+    # Prune any broker daily rows for this user on that date
+    await db.execute(
+        delete(BrokerPnLDaily).where(
+            BrokerPnLDaily.user_id == record.user_id,
+            BrokerPnLDaily.date == record.date,
+        )
+    )
+    await db.delete(record)
+    await db.commit()
+
+    metrics = await get_admin_metrics(db)
+    return {
+        "success": True,
+        "deleted_record_id": str(record_id),
+        "metrics": metrics,
+    }
+
+
+
+@router.get("/real-users", response_model=list[AdminUserOut])
+async def get_real_users(
+    admin: AdminDep,
+    db: DbSession,
+) -> list[AdminUserOut]:
+    """Fetch all real registered users with posting statistics and manual block status."""
+    users = (
+        await db.scalars(
+            select(User)
+            .options(
+                selectinload(User.linked_brokers),
+                selectinload(User.pnl_records),
+            )
+            .where(User.is_simulated.is_(False))
+            .order_by(User.created_at.desc())
+        )
+    ).all()
+
+    out: list[AdminUserOut] = []
+    for u in users:
+        records = [r for r in u.pnl_records if not r.is_simulated]
+        manual_cnt = sum(1 for r in records if r.has_manual_entry or not r.is_verified)
+        verified_cnt = sum(1 for r in records if r.is_verified)
+        last_date = max((r.date for r in records), default=None)
+        has_broker = any(b.is_active for b in u.linked_brokers)
+
+        out.append(
+            AdminUserOut(
+                user_id=u.user_id,
+                username=u.username,
+                display_name=u.display_name,
+                email=u.email,
+                created_at=u.created_at,
+                is_active=u.is_active,
+                is_manual_blocked=bool(getattr(u, "is_manual_blocked", False)),
+                is_verified_publisher=has_broker,
+                total_posts=len(records),
+                manual_posts=manual_cnt,
+                verified_posts=verified_cnt,
+                last_post_date=last_date,
+            )
+        )
+    return out
+
+
+@router.post("/users/{user_id}/block-manual")
+async def admin_toggle_manual_block(
+    user_id: uuid.UUID,
+    payload: UserBlockManualRequest,
+    admin: AdminDep,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Blocks or unblocks a real user from submitting manual P&L entries."""
+    user = await db.scalar(
+        select(User).where(User.user_id == user_id, User.is_simulated.is_(False))
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Real user not found",
+        )
+    user.is_manual_blocked = payload.blocked
+    await db.commit()
+    return {
+        "success": True,
+        "user_id": str(user.user_id),
+        "username": user.username,
+        "is_manual_blocked": user.is_manual_blocked,
+    }

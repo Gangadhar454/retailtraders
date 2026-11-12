@@ -229,6 +229,15 @@ export const authApi = {
     return tokens;
   },
 
+  async loginWithGoogle(credential: string): Promise<TokenPair> {
+    const tokens = await apiFetch<TokenPair>("/api/v1/auth/google", {
+      method: "POST",
+      body: { credential },
+    });
+    setTokens(tokens);
+    return tokens;
+  },
+
   async login(input: { email: string; password: string }): Promise<TokenPair> {
     const tokens = await apiFetch<TokenPair>("/api/v1/auth/login", {
       method: "POST",
@@ -256,7 +265,7 @@ export const authApi = {
   },
 
   async changePassword(input: {
-    current_password: string;
+    current_password?: string | null;
     new_password: string;
   }): Promise<{ message: string }> {
     return apiFetch<{ message: string }>("/api/v1/auth/change-password", {
@@ -479,6 +488,42 @@ export interface AdminMetrics {
   };
 }
 
+export interface AdminPosting {
+  record_id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  email: string;
+  net_pnl: number;
+  is_verified: boolean;
+  source: string;
+  broker_source?: string | null;
+  has_manual_entry: boolean;
+  manual_net_pnl?: number | null;
+  trade_count: number;
+  win_rate?: number | null;
+  notes?: string | null;
+  date: string;
+  created_at: string;
+  updated_at?: string | null;
+  is_manual_blocked?: boolean;
+}
+
+export interface AdminUser {
+  user_id: string;
+  username: string;
+  display_name: string;
+  email: string;
+  created_at: string;
+  is_active: boolean;
+  is_manual_blocked: boolean;
+  is_verified_publisher: boolean;
+  total_posts: number;
+  manual_posts: number;
+  verified_posts: number;
+  last_post_date?: string | null;
+}
+
 export interface BurstTrade {
   record_id: string;
   username: string;
@@ -534,6 +579,54 @@ export const adminApi = {
     apiFetch("/api/v1/admin/toggle-simulation", {
       method: "POST",
       body: { enabled },
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  realPostings: (
+    token: string,
+    targetDate?: string,
+    allTime = false,
+  ): Promise<AdminPosting[]> => {
+    const params = new URLSearchParams();
+    if (targetDate) params.set("target_date", targetDate);
+    if (allTime) params.set("all_time", "true");
+    const qs = params.toString();
+    return apiFetch<AdminPosting[]>(`/api/v1/admin/real-postings${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  deletePosting: (
+    token: string,
+    recordId: string,
+  ): Promise<{
+    success: boolean;
+    deleted_record_id: string;
+    metrics: AdminMetrics;
+  }> =>
+    apiFetch(`/api/v1/admin/postings/${recordId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  realUsers: (token: string): Promise<AdminUser[]> =>
+    apiFetch<AdminUser[]>("/api/v1/admin/real-users", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  toggleUserManualBlock: (
+    token: string,
+    userId: string,
+    blocked: boolean,
+  ): Promise<{
+    success: boolean;
+    user_id: string;
+    username: string;
+    is_manual_blocked: boolean;
+  }> =>
+    apiFetch(`/api/v1/admin/users/${userId}/block-manual`, {
+      method: "POST",
+      body: { blocked },
       headers: { Authorization: `Bearer ${token}` },
     }),
 

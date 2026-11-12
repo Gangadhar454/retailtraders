@@ -14,6 +14,8 @@ COPY . .
 # API URL has to be known here rather than at container start.
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=329472900840-e86f17v1scnkckhj35v91gufboir97f3.apps.googleusercontent.com
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_CPU_COUNT=1 \
     NODE_OPTIONS="--max-old-space-size=1024"

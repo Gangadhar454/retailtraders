@@ -71,9 +71,13 @@ class User(Base):
         Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     display_name: Mapped[str] = mapped_column(String(64), index=True)
     username: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    google_id: Mapped[str | None] = mapped_column(
+        String(128), unique=True, index=True, nullable=True
+    )
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     verified_upi_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     upi_verified_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -94,6 +98,7 @@ class User(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_manual_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     linked_brokers: Mapped[list[LinkedBroker]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
