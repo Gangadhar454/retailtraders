@@ -109,18 +109,18 @@ ssh -i "C:\Users\HARITHA\Documents\netpl-keys\backend\backend.key" -o StrictHost
 
 ---
 
-### Step 3: Deploy to Frontend VM
+### Step 3: Deploy to Frontend VM (Zero-Downtime Live Build)
 
-> [!IMPORTANT]
-> **Micro VM Memory Constraint**: The Frontend VM has **1 GB RAM**.  
-> If Docker tries to build Next.js while the existing container is running, the compiler will exhaust memory and crash.  
-> You must **stop the container first (`down`)**, set `NEXT_CPU_COUNT=1`, and limit Node memory to 1024 MB.
+> [!TIP]
+> **Zero Downtime**: The existing frontend container stays live and serves incoming user traffic during the Docker build. Once the new image is built, `docker compose up -d` replaces the container with near-zero downtime.
 >
-> **PowerShell Quote Escaping**: Use **single quotes** (`'...'`) in PowerShell and omit inner quotes around `NODE_OPTIONS=--max-old-space-size=1024` to prevent PowerShell from stripping quotes.
+> **Memory & Single Threading**: `NEXT_CPU_COUNT=1` and `NODE_OPTIONS=--max-old-space-size=1024` are kept to ensure the build runs smoothly alongside the running container using the VM's physical RAM and 2 GB Swap.
+>
+> **PowerShell Quote Escaping**: Use **single quotes** (`'...'`) in PowerShell and omit inner quotes around `NODE_OPTIONS=--max-old-space-size=1024`.
 
 #### Method A: Direct from Local PowerShell (Recommended)
 ```powershell
-ssh -i "C:\Users\HARITHA\Documents\netpl-keys\frontend\frontend.key" -o StrictHostKeyChecking=no ubuntu@129.225.71.93 'cd /opt/netpnl/infra/frontend && docker compose -f docker-compose.prod.yml down && NEXT_CPU_COUNT=1 NODE_OPTIONS=--max-old-space-size=1024 docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d'
+ssh -i "C:\Users\HARITHA\Documents\netpl-keys\frontend\frontend.key" -o StrictHostKeyChecking=no ubuntu@129.225.71.93 'cd /opt/netpnl && git pull origin main && cd infra/frontend && NEXT_CPU_COUNT=1 NODE_OPTIONS=--max-old-space-size=1024 docker compose -f docker-compose.prod.yml build && docker compose -f docker-compose.prod.yml up -d'
 ```
 
 #### Method B: Interactive inside SSH (To view live build logs)
@@ -129,8 +129,9 @@ ssh -i "C:\Users\HARITHA\Documents\netpl-keys\frontend\frontend.key" -o StrictHo
 ssh -i "C:\Users\HARITHA\Documents\netpl-keys\frontend\frontend.key" ubuntu@129.225.71.93
 
 # Run inside ubuntu@netpl-frontend:~$
-cd /opt/netpnl/infra/frontend
-docker compose -f docker-compose.prod.yml down
+cd /opt/netpnl
+git pull origin main
+cd infra/frontend
 NEXT_CPU_COUNT=1 NODE_OPTIONS="--max-old-space-size=1024" docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml up -d
 ```
