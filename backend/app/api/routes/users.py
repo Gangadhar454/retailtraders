@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +12,7 @@ from app.schemas import (
     DonateEligibility,
     LinkedBrokerOut,
     PerformancePoint,
+    PnLRecordOut,
     ProfileStats,
     PublicUser,
     UpiIntentResponse,
@@ -19,6 +20,7 @@ from app.schemas import (
     UserProfileResponse,
 )
 from app.services.performance import PnLPoint, compute_stats
+from app.services.reactions import get_reaction_summary
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -54,6 +56,7 @@ async def get_profile(
     username: str,
     db: DbSession,
     limit: int = Query(default=180, ge=1, le=1000),
+    x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
 ) -> UserProfileResponse:
     user = await db.scalar(
         select(User)
@@ -91,6 +94,12 @@ async def get_profile(
         )
 
     today = next((r for r in reversed(records) if r.date == records[-1].date), None) if records else None
+    today_out: PnLRecordOut | None = None
+    if today is not None:
+        today_out = PnLRecordOut.model_validate(today)
+        rx, ux = await get_reaction_summary(db, today.record_id, x_client_id)
+        today_out.reactions = rx
+        today_out.user_reactions = ux
 
     link = next(
         (b for b in user.linked_brokers if b.is_active),
@@ -120,7 +129,7 @@ async def get_profile(
             loss_days=stats.loss_days,
         ),
         timeline=timeline,
-        today=today,
+        today=today_out,
         upi=UpiStatus(
             status=user.upi_verification_status,
             upi_id=user.verified_upi_id,

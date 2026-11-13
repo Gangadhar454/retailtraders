@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 
 import { DonateModal } from "@/components/DonateModal";
 import { PnlTicker } from "@/components/AnimatedNumber";
+import { PostReactions } from "@/components/PostReactions";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { avatarInk, avatarTint, formatDate, formatPostDateTime, initials, pnlTone } from "@/lib/format";
 import { publicApi } from "@/lib/api";
@@ -137,8 +138,8 @@ function LeaderboardRow({
         {entry.rank}
       </span>
 
-      <div className="flex min-w-0 items-center gap-3">
-        <Link href={`/u/${entry.user.username}`} className="shrink-0">
+      <div className="flex min-w-0 items-start gap-3">
+        <Link href={`/u/${entry.user.username}`} className="shrink-0 mt-0.5">
           <span
             className="grid h-8 w-8 place-items-center rounded text-[11px] font-bold"
             style={{
@@ -196,6 +197,15 @@ function LeaderboardRow({
               </span>
             )}
           </div>
+          {entry.record_id && (
+            <div className="mt-2">
+              <PostReactions
+                recordId={entry.record_id}
+                initialReactions={entry.reactions ?? {}}
+                initialUserReactions={entry.user_reactions ?? []}
+              />
+            </div>
+          )}
         </div>
       </div>
 

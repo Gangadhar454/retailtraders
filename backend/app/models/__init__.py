@@ -183,6 +183,9 @@ class PnLRecord(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="pnl_records")
+    reaction_rows: Mapped[list[PostReaction]] = relationship(
+        "PostReaction", back_populates="pnl_record", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "date", name="uq_user_pnl_date"),
@@ -276,3 +279,30 @@ class PasswordResetOTP(Base):
     )
 
     user: Mapped[User] = relationship()
+
+
+class PostReaction(Base):
+    """Emoji reactions on posts (thumbsup, heart, wow, sad, care).
+    Anonymous visitors can react without logging in using a persistent client_id.
+    """
+
+    __tablename__ = "post_reactions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    record_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pnl_records.record_id", ondelete="CASCADE"), index=True
+    )
+    reaction_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    client_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+    pnl_record: Mapped[PnLRecord] = relationship("PnLRecord", back_populates="reaction_rows")
+
+    __table_args__ = (
+        UniqueConstraint("record_id", "client_id", "reaction_type", name="uq_post_reaction_client"),
+        Index("ix_post_reactions_record_type", "record_id", "reaction_type"),
+    )

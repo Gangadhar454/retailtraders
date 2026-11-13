@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { ExportModal } from "@/components/ExportModal";
+import { PostReactions } from "@/components/PostReactions";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { UpiQr } from "@/components/UpiQr";
 import { publicApi } from "@/lib/api";
@@ -164,6 +165,15 @@ export function ProfileView({ username }: { username: string }) {
                 {today.trade_count} trades
               </p>
             ) : null}
+            {today?.record_id && (
+              <div className="mt-2 flex justify-end">
+                <PostReactions
+                  recordId={today.record_id}
+                  initialReactions={today.reactions ?? {}}
+                  initialUserReactions={today.user_reactions ?? []}
+                />
+              </div>
+            )}
           </div>
         </div>
 

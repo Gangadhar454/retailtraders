@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, date, timezone
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +16,7 @@ from app.schemas import (
     SentimentResponse,
 )
 from app.services.pnl_sync import calendar_day_for
+from app.services.reactions import get_reactions_for_records
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 # Display-only copy for the dashboard ("Total P&L since …"). Not a filter.
@@ -127,6 +128,7 @@ async def leaderboard(
     sort: str = Query(default="recent", pattern="^(recent|worst|best)$"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
 ) -> LeaderboardResponse:
     if scope in ("all_time", "cumulative") and day is None:
         subq = (
@@ -203,6 +205,7 @@ async def leaderboard(
         user_ids = [u.user_id for u, *_ in rows]
         notes_by_user: dict[uuid.UUID, str | None] = {}
         broker_sources_by_user: dict[uuid.UUID, str | None] = {}
+        latest_record_by_user: dict[uuid.UUID, PnLRecord] = {}
         if user_ids:
             records = (
                 await db.scalars(
@@ -212,10 +215,19 @@ async def leaderboard(
                 )
             ).all()
             for r in records:
+                if r.user_id not in latest_record_by_user:
+                    latest_record_by_user[r.user_id] = r
                 if r.user_id not in notes_by_user:
                     notes_by_user[r.user_id] = r.notes
                 if r.user_id not in broker_sources_by_user and r.broker_source:
                     broker_sources_by_user[r.user_id] = r.broker_source
+
+        cum_record_ids = [
+            r.record_id for r in latest_record_by_user.values() if r.record_id
+        ]
+        cum_reactions_map, cum_user_map = await get_reactions_for_records(
+            db, cum_record_ids, x_client_id
+        )
 
         entries = []
         for index, (u, cum_pnl, cum_trades, latest_date, latest_created_at, s_count, v_count, t_abs, v_abs) in enumerate(rows):
@@ -237,6 +249,8 @@ async def leaderboard(
                 else broker_sources_by_user.get(u.user_id)
             )
             val = round(float(cum_pnl or 0.0), 2)
+            entry_rec = latest_record_by_user.get(u.user_id)
+            entry_rec_id = entry_rec.record_id if entry_rec else None
             entries.append(
                 LeaderboardEntry(
                     rank=offset + index + 1,
@@ -249,6 +263,9 @@ async def leaderboard(
                     record_date=latest_date,
                     created_at=latest_created_at,
                     note=notes_by_user.get(u.user_id),
+                    record_id=entry_rec_id,
+                    reactions=cum_reactions_map.get(entry_rec_id, {}) if entry_rec_id else {},
+                    user_reactions=cum_user_map.get(entry_rec_id, []) if entry_rec_id else [],
                 )
             )
 
@@ -295,6 +312,11 @@ async def leaderboard(
         for uid, total_sum in totals:
             total_by_user[uid] = round(float(total_sum or 0.0), 2)
 
+    daily_record_ids = [record.record_id for record in records if record.record_id]
+    daily_reactions_map, daily_user_map = await get_reactions_for_records(
+        db, daily_record_ids, x_client_id
+    )
+
     entries = [
         LeaderboardEntry(
             rank=offset + index + 1,
@@ -307,6 +329,9 @@ async def leaderboard(
             record_date=record.date,
             created_at=record.created_at,
             note=record.notes,
+            record_id=record.record_id,
+            reactions=daily_reactions_map.get(record.record_id, {}),
+            user_reactions=daily_user_map.get(record.record_id, []),
         )
         for index, record in enumerate(records)
     ]

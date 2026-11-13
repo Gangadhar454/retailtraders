@@ -44,6 +44,14 @@ export interface TokenPair {
   expires_in: number;
 }
 
+export type ReactionType = "thumbsup" | "heart" | "wow" | "sad" | "care";
+
+export interface ReactionSummary {
+  record_id: string;
+  reactions: Record<string, number>;
+  user_reactions: string[];
+}
+
 export interface PnLRecord {
   record_id: string;
   user_id: string;
@@ -60,6 +68,8 @@ export interface PnLRecord {
   manual_trade_count?: number;
   has_manual_entry?: boolean;
   created_at: string;
+  reactions?: Record<string, number>;
+  user_reactions?: string[];
 }
 
 export interface PublishItem {
@@ -136,6 +146,9 @@ export interface LeaderboardEntry {
   record_date: string;
   created_at?: string | null;
   note: string | null;
+  record_id?: string | null;
+  reactions?: Record<string, number>;
+  user_reactions?: string[];
 }
 
 export interface LeaderboardResponse {

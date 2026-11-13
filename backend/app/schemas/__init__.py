@@ -213,6 +213,8 @@ class PnLRecordOut(ORMModel):
     manual_trade_count: int = 0
     has_manual_entry: bool = False
     created_at: UtcDateTime
+    reactions: dict[str, int] = Field(default_factory=dict)
+    user_reactions: list[str] = Field(default_factory=list)
 
 
 class PublishItemOut(BaseModel):
@@ -339,6 +341,29 @@ class LeaderboardEntry(BaseModel):
     record_date: date_type
     created_at: UtcDateTime | None = None
     note: str | None = None
+    record_id: uuid.UUID | None = None
+    reactions: dict[str, int] = Field(default_factory=dict)
+    user_reactions: list[str] = Field(default_factory=list)
+
+
+class ReactionToggleRequest(BaseModel):
+    reaction_type: str
+    client_id: str | None = None
+
+
+class ReactionSummary(BaseModel):
+    record_id: uuid.UUID
+    reactions: dict[str, int]
+    user_reactions: list[str] = Field(default_factory=list)
+
+
+class BatchReactionsRequest(BaseModel):
+    record_ids: list[uuid.UUID]
+    client_id: str | None = None
+
+
+class BatchReactionsResponse(BaseModel):
+    reactions_by_record: dict[str, ReactionSummary]
 
 
 class LeaderboardResponse(BaseModel):

@@ -29,7 +29,8 @@ def upgrade() -> None:
     else:
         with op.batch_alter_table("users") as batch_op:
             batch_op.alter_column("password_hash", existing_type=sa.String(255), nullable=True)
-            batch_op.add_column(sa.Column("google_id", sa.String(128), nullable=True, unique=True))
+            batch_op.add_column(sa.Column("google_id", sa.String(128), nullable=True))
+            batch_op.create_unique_constraint("uq_users_google_id", ["google_id"])
             batch_op.add_column(sa.Column("avatar_url", sa.Text(), nullable=True))
 
 

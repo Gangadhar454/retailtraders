@@ -6,6 +6,7 @@ import type {
   LeaderboardResponse,
   LinkedBroker,
   PublishHistoryResponse,
+  ReactionSummary,
   Sentiment,
   TokenPair,
   UpiIntent,
@@ -14,6 +15,7 @@ import type {
   UserProfile,
   VerifyPnlResponse,
 } from "./types";
+import { getClientId } from "./clientId";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
@@ -169,6 +171,11 @@ export async function apiFetch<T>(
     Accept: "application/json",
     ...((headers as Record<string, string>) ?? {}),
   };
+
+  const clientId = getClientId();
+  if (clientId && !requestHeaders["X-Client-Id"]) {
+    requestHeaders["X-Client-Id"] = clientId;
+  }
 
   if (body !== undefined) {
     requestHeaders["Content-Type"] = "application/json";
@@ -382,6 +389,36 @@ export const publicApi = {
     apiFetch<DonateEligibility>(
       `/api/v1/users/${encodeURIComponent(username)}/donate-eligible`,
     ),
+
+  toggleReaction: (
+    recordId: string,
+    reactionType: string,
+  ): Promise<ReactionSummary> =>
+    apiFetch<ReactionSummary>(
+      `/api/v1/pnl/records/${encodeURIComponent(recordId)}/reactions`,
+      {
+        method: "POST",
+        body: { reaction_type: reactionType, client_id: getClientId() },
+      },
+    ),
+
+  postReactions: (recordId: string): Promise<ReactionSummary> =>
+    apiFetch<ReactionSummary>(
+      `/api/v1/pnl/records/${encodeURIComponent(recordId)}/reactions`,
+    ),
+
+  batchReactions: async (
+    recordIds: string[],
+  ): Promise<Record<string, ReactionSummary>> => {
+    if (!recordIds.length) return {};
+    const res = await apiFetch<{
+      reactions_by_record: Record<string, ReactionSummary>;
+    }>("/api/v1/pnl/reactions/batch", {
+      method: "POST",
+      body: { record_ids: recordIds, client_id: getClientId() },
+    });
+    return res.reactions_by_record ?? {};
+  },
 };
 
 // ---------------------------------------------------------------------------

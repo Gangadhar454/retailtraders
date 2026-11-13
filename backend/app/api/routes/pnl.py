@@ -3,13 +3,15 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Header, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DbSession
-from app.models import BrokerName, BrokerPnLDaily, LinkedBroker, PnLRecord, PnLSource, User
+from app.models import BrokerName, BrokerPnLDaily, LinkedBroker, PnLRecord, PnLSource, PostReaction, User
 from app.schemas import (
+    BatchReactionsRequest,
+    BatchReactionsResponse,
     PnLCreateRequest,
     PnLFeedEntry,
     PnLFeedResponse,
@@ -18,6 +20,8 @@ from app.schemas import (
     PublishDayOut,
     PublishHistoryResponse,
     PublishItemOut,
+    ReactionSummary,
+    ReactionToggleRequest,
     VerifyPnlResponse,
 )
 from app.services.pnl_sync import (
@@ -27,6 +31,12 @@ from app.services.pnl_sync import (
     trading_day_for,
 )
 from app.services.broker_base import BrokerError
+from app.services.reactions import (
+    VALID_REACTIONS,
+    get_reaction_summary,
+    get_reactions_for_records,
+    toggle_reaction,
+)
 
 router = APIRouter(prefix="/pnl", tags=["pnl"])
 
@@ -374,6 +384,7 @@ async def feed(
     sort: str = Query(default="worst", pattern="^(worst|best|recent)$"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
 ) -> PnLFeedResponse:
     """The public 'Hall of Pain' feed."""
     target = day or calendar_day_for()
@@ -398,14 +409,23 @@ async def feed(
     has_more = len(records) > limit
     records = records[:limit]
 
-    entries = [
-        PnLFeedEntry(
-            record=PnLRecordOut.model_validate(r),
-            user=_public(r.user),
-            rank=(offset + index + 1) if sort != "recent" else None,
+    record_ids = [r.record_id for r in records]
+    reactions_map, user_reactions_map = await get_reactions_for_records(
+        db, record_ids, x_client_id
+    )
+
+    entries = []
+    for index, r in enumerate(records):
+        out = PnLRecordOut.model_validate(r)
+        out.reactions = reactions_map.get(r.record_id, {})
+        out.user_reactions = user_reactions_map.get(r.record_id, [])
+        entries.append(
+            PnLFeedEntry(
+                record=out,
+                user=_public(r.user),
+                rank=(offset + index + 1) if sort != "recent" else None,
+            )
         )
-        for index, r in enumerate(records)
-    ]
 
     total = await db.scalar(
         select(func.count())
@@ -420,3 +440,86 @@ async def feed(
     return PnLFeedResponse(
         entries=entries, total=int(total or 0), has_more=has_more
     )
+
+
+@router.post("/records/{record_id}/reactions", response_model=ReactionSummary)
+async def toggle_post_reaction(
+    record_id: uuid.UUID,
+    payload: ReactionToggleRequest,
+    db: DbSession,
+    x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
+) -> ReactionSummary:
+    """Toggle an emoji reaction on a post. Anonymous visitors can react without logging in."""
+    record = await db.get(PnLRecord, record_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    client_id = (payload.client_id or x_client_id or "").strip()
+    if not client_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="client_id is required",
+        )
+    client_id = client_id[:64]
+
+    try:
+        reactions, user_reactions = await toggle_reaction(
+            db, record_id, payload.reaction_type, client_id
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        )
+
+    return ReactionSummary(
+        record_id=record_id,
+        reactions=reactions,
+        user_reactions=user_reactions,
+    )
+
+
+@router.get("/records/{record_id}/reactions", response_model=ReactionSummary)
+async def get_post_reactions(
+    record_id: uuid.UUID,
+    db: DbSession,
+    x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
+    client_id: str | None = Query(default=None),
+) -> ReactionSummary:
+    """Get reaction counts and visitor's reactions for a post."""
+    record = await db.get(PnLRecord, record_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    cid = (client_id or x_client_id or "").strip()[:64] or None
+    reactions, user_reactions = await get_reaction_summary(db, record_id, cid)
+    return ReactionSummary(
+        record_id=record_id,
+        reactions=reactions,
+        user_reactions=user_reactions,
+    )
+
+
+@router.post("/reactions/batch", response_model=BatchReactionsResponse)
+async def get_batch_reactions(
+    payload: BatchReactionsRequest,
+    db: DbSession,
+    x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
+) -> BatchReactionsResponse:
+    """Get reactions for multiple posts at once."""
+    cid = (payload.client_id or x_client_id or "").strip()[:64] or None
+    reactions_map, user_map = await get_reactions_for_records(
+        db, payload.record_ids, cid
+    )
+    result = {}
+    for rid in payload.record_ids:
+        result[str(rid)] = ReactionSummary(
+            record_id=rid,
+            reactions=reactions_map.get(rid, {}),
+            user_reactions=user_map.get(rid, []),
+        )
+    return BatchReactionsResponse(reactions_by_record=result)
+
