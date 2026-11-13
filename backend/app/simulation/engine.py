@@ -156,7 +156,7 @@ def _generate_pnl(
                 note = "Swing stop loss hit at key support."
 
     else:
-        # Default options_buyer: ~86% loss rate (reflects SEBI retail realities)
+        # Default options_buyer: ~86% loss rate (reflects retail market realities)
         is_profit = random.random() < 0.14
         trades = random.randint(4, 22)
         if is_profit:

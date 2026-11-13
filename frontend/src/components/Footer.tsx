@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 const DISCLAIMER =
-  "Not a SEBI registered platform. All transfers are voluntary peer-to-peer gifts. Zero funds held by platform.";
+  "All transfers are voluntary peer-to-peer gifts. Zero funds held by platform.";
 
 /**
  * The footer year is the only time-dependent value in the tree. Rendering it

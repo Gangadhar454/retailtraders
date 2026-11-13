@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Disclaimer & Risk Disclosure",
-  description: "Financial disclaimer, SEBI regulatory disclosure, and risk warnings for RetailTraders (NetPnL).",
+  description: "Financial disclaimer and risk warnings for RetailTraders (NetPnL).",
 };
 
 export default function DisclaimerPage() {
@@ -20,15 +20,14 @@ export default function DisclaimerPage() {
       </header>
 
       <div className="card space-y-8 p-6 sm:p-10">
-        {/* SEBI Disclaimer */}
+        {/* Financial Disclaimer */}
         <section className="space-y-3">
           <div className="rounded-lg border border-amber/40 bg-amber-soft p-5 text-[13.5px] leading-relaxed text-amber-950">
-            <h2 className="text-base font-bold text-amber-950">1. Not SEBI Registered — No Financial Advice</h2>
+            <h2 className="text-base font-bold text-amber-950">1. No Financial Advice</h2>
             <p className="mt-2">
               <strong>RetailTraders</strong> (operating as <strong>NetPnL</strong>, accessible at{" "}
               <Link href="/" className="underline font-semibold">retailtraders.in</Link>) is an independent community journal
-              and transparency counter. We are <strong>NOT</strong> registered with the Securities and Exchange Board of India
-              (SEBI) as an Investment Adviser (IA), Research Analyst (RA), Stock Broker, Portfolio Manager, or Financial Intermediary.
+              and transparency counter.
             </p>
             <p className="mt-2">
               <strong>No Investment Advice:</strong> None of the materials, metrics, leaderboards, sentiment aggregations, P&amp;L
@@ -38,13 +37,12 @@ export default function DisclaimerPage() {
           </div>
         </section>
 
-        {/* SEBI F&O Risk Disclosure */}
+        {/* Derivatives Risk Disclosure */}
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-foreground">2. SEBI Risk Disclosure on Derivatives (F&amp;O)</h2>
+          <h2 className="text-base font-semibold text-foreground">2. Risk Disclosure on Derivatives (F&amp;O)</h2>
           <div className="rounded-lg border border-line bg-surface-alt p-5 text-[13px] leading-relaxed text-ink-soft space-y-3">
             <p className="font-semibold text-foreground">
-              As mandated by SEBI guidelines for market participants, all retail traders should review the findings of SEBI&apos;s
-              study on individual trader performance:
+              All retail traders should review key statistical findings on individual trader performance in the derivatives segment:
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <li>
@@ -63,7 +61,7 @@ export default function DisclaimerPage() {
               </li>
             </ul>
             <p className="text-[12px] text-muted italic">
-              Source: SEBI Study on &ldquo;Analysis of Profit and Loss of Individual Traders Dealing in Equity F&amp;O Segment&rdquo;.
+              Source: Study on &ldquo;Analysis of Profit and Loss of Individual Traders Dealing in Equity F&amp;O Segment&rdquo;.
             </p>
           </div>
         </section>

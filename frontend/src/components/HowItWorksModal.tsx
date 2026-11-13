@@ -233,7 +233,7 @@ export function HowItWorksModal({ open, onClose }: HowItWorksModalProps) {
                       </div>
                     </div>
 
-                    {/* Non-SEBI Disclaimer Box */}
+                    {/* Platform Disclaimer Box */}
                     <div className="rounded-lg border border-amber/30 bg-amber-soft p-4">
                       <div className="flex items-start gap-3">
                         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-amber mt-0.5">
@@ -246,10 +246,10 @@ export function HowItWorksModal({ open, onClose }: HowItWorksModalProps) {
                         </svg>
                         <div>
                           <h5 className="text-[13px] font-bold text-amber uppercase tracking-wider">
-                            Statutory Notice &amp; Disclaimer
+                            Notice &amp; Disclaimer
                           </h5>
                           <p className="mt-1 text-[12px] leading-relaxed text-foreground/80">
-                            RetailTraders.in is purely a software journaling and cryptographic verification platform. We are NOT registered with the Securities and Exchange Board of India (SEBI) as a Research Analyst (RA) or Investment Adviser (IA). No trade, note, leaderboard ranking, or tip constitutes financial advice or buy/sell recommendations.
+                            RetailTraders.in is purely a software journaling and cryptographic verification platform. No trade, note, leaderboard ranking, or tip constitutes financial advice or buy/sell recommendations.
                           </p>
                         </div>
                       </div>

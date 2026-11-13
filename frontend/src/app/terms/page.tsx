@@ -33,12 +33,10 @@ export default function TermsPage() {
 
         {/* Section 2 */}
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-foreground">2. Nature of Platform &amp; SEBI Non-Registration</h2>
+          <h2 className="text-base font-semibold text-foreground">2. Nature of Platform &amp; No Financial Advice</h2>
           <div className="rounded-lg border border-amber/30 bg-amber-soft p-4 text-[13px] leading-relaxed text-amber-900">
-            <strong>Important Regulatory Notice:</strong> RetailTraders (NetPnL) is an independent record-keeping, journal, and
-            transparency platform for retail traders. We are <strong>NOT</strong> registered with the Securities and Exchange Board
-            of India (SEBI) as an Investment Adviser (IA), Research Analyst (RA), Stock Broker, Portfolio Manager, or Financial
-            Intermediary under SEBI regulations.
+            <strong>Important Notice:</strong> RetailTraders (NetPnL) is an independent record-keeping, journal, and
+            transparency platform for retail traders.
           </div>
           <p className="text-[13.5px] leading-relaxed text-ink-soft">
             Nothing published on this website—including daily net profit and loss figures, trader leaderboards, community

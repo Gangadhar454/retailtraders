@@ -7,9 +7,9 @@ straight from a linked Upstox, Zerodha, or Angel One account and marked **verifi
 see the live counter for the day, browse the *Hall of Pain* (the day's worst
 performers), and send a voluntary tip directly to a trader's UPI ID.
 
-> **Not a SEBI registered platform. All transfers are voluntary peer-to-peer
-> gifts.** NetPnL never holds, routes, or custodies money. Tipping is nothing
-> more than a `upi://` intent opened in the supporter's own UPI app.
+> **All transfers are voluntary peer-to-peer gifts.** NetPnL never holds, routes,
+> or custodies money. Tipping is nothing more than a `upi://` intent opened in
+> the supporter's own UPI app.
 
 ---
 

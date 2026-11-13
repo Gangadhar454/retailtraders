@@ -260,7 +260,7 @@ async function renderCard(
   ctx.font = "500 19px Inter, system-ui, sans-serif";
   ctx.fillStyle = "#a86a12";
   const disclaimer =
-    "Not a SEBI registered platform. All transfers are voluntary peer-to-peer gifts.";
+    "All transfers are voluntary peer-to-peer gifts.";
   ctx.fillText(disclaimer, 88, CANVAS_H - 86);
 }
 
