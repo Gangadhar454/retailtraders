@@ -107,11 +107,9 @@ export function FollowModal({
     setActionLoading((prev) => ({ ...prev, [uName]: true }));
 
     try {
-      if (isNowFollowing) {
-        await publicApi.follow(uName);
-      } else {
-        await publicApi.unfollow(uName);
-      }
+      const res = isNowFollowing
+        ? await publicApi.follow(uName)
+        : await publicApi.unfollow(uName);
 
       // If we are looking at our own following tab and unfollowed someone, optionally update counts
       if (
@@ -125,7 +123,12 @@ export function FollowModal({
 
       window.dispatchEvent(
         new CustomEvent("netpnl:follow_change", {
-          detail: { username: uName, following: isNowFollowing },
+          detail: {
+            username: uName,
+            following: isNowFollowing,
+            followersCount: res.followers_count,
+            source: "modal",
+          },
         }),
       );
     } catch {

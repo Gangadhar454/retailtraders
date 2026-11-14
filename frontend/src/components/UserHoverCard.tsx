@@ -163,6 +163,39 @@ export function UserHoverCard({
     }, 250);
   };
 
+  // Listen for follow changes from other components (e.g. profile page or modal)
+  useEffect(() => {
+    const handleFollowChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        username: string;
+        following: boolean;
+        followersCount?: number;
+        source?: string;
+      }>;
+      if (customEvent.detail?.source === "hovercard") return;
+      if (
+        customEvent.detail?.username?.toLowerCase() === username.toLowerCase()
+      ) {
+        setCard((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            is_following: customEvent.detail.following,
+            followers_count:
+              typeof customEvent.detail.followersCount === "number"
+                ? customEvent.detail.followersCount
+                : customEvent.detail.following
+                  ? prev.followers_count + 1
+                  : Math.max(0, prev.followers_count - 1),
+          };
+        });
+      }
+    };
+    window.addEventListener("netpnl:follow_change", handleFollowChange);
+    return () =>
+      window.removeEventListener("netpnl:follow_change", handleFollowChange);
+  }, [username]);
+
   // Close on Escape or scroll
   useEffect(() => {
     if (!isOpen) return;
@@ -228,28 +261,30 @@ export function UserHoverCard({
     setFollowLoading(true);
 
     try {
+      let finalCount = newCount;
       if (nextFollow) {
         const res = await publicApi.follow(username);
-        const synced = {
-          ...updatedCard,
-          is_following: res.is_following,
-          followers_count: res.followers_count,
-        };
-        setCard(synced);
-        userCardCache.set(username.toLowerCase(), synced);
+        finalCount = res.followers_count;
       } else {
         const res = await publicApi.unfollow(username);
-        const synced = {
-          ...updatedCard,
-          is_following: res.is_following,
-          followers_count: res.followers_count,
-        };
-        setCard(synced);
-        userCardCache.set(username.toLowerCase(), synced);
+        finalCount = res.followers_count;
       }
+      const synced = {
+        ...updatedCard,
+        is_following: nextFollow,
+        followers_count: finalCount,
+      };
+      setCard(synced);
+      userCardCache.set(username.toLowerCase(), synced);
+
       window.dispatchEvent(
         new CustomEvent("netpnl:follow_change", {
-          detail: { username, following: nextFollow },
+          detail: {
+            username,
+            following: nextFollow,
+            followersCount: finalCount,
+            source: "hovercard",
+          },
         }),
       );
     } catch {
@@ -404,7 +439,7 @@ export function UserHoverCard({
                   </div>
                 </div>
 
-                {/* Display Name & Handle */}
+                {/* Display Name, Handle & Followers */}
                 <div className="mt-2.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Link
@@ -421,6 +456,19 @@ export function UserHoverCard({
                     )}
                   </div>
                   <p className="font-mono text-[12px] text-muted">@{username}</p>
+
+                  {/* Followers & Following directly under name */}
+                  <div className="mt-1.5 flex items-center gap-3 text-[12.5px]">
+                    <span className="font-semibold text-foreground">
+                      {card?.followers_count ?? 0}{" "}
+                      <span className="font-normal text-muted">followers</span>
+                    </span>
+                    <span className="text-muted opacity-60" aria-hidden>&middot;</span>
+                    <span className="font-semibold text-foreground">
+                      {card?.following_count ?? 0}{" "}
+                      <span className="font-normal text-muted">following</span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Bio */}
@@ -431,7 +479,7 @@ export function UserHoverCard({
                 ) : null}
 
                 {/* Member Since Row */}
-                <div className="mt-3 flex items-center gap-1.5 text-[11.5px] text-muted border-t border-line/60 pt-2.5">
+                <div className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-muted border-t border-line/60 pt-2">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -457,14 +505,14 @@ export function UserHoverCard({
                   </span>
                 </div>
 
-                {/* Stats Highlight Box: Net PnL & Today */}
-                <div className="mt-2.5 grid grid-cols-2 gap-2 rounded-lg bg-surface-alt/70 p-2.5 border border-line/50">
+                {/* Stats Highlight Box: Net PnL & Trades */}
+                <div className="mt-2.5 flex items-center justify-between rounded-lg bg-surface-alt/70 px-3 py-2 border border-line/50">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                       Net P&L
                     </p>
                     <p
-                      className={`numeric text-[15px] font-bold mt-0.5 ${
+                      className={`numeric text-[16px] font-bold mt-0.5 ${
                         tone === "loss"
                           ? "text-loss"
                           : tone === "profit"
@@ -474,30 +522,17 @@ export function UserHoverCard({
                     >
                       {formatSignedINR(totalPnl)}
                     </p>
-                    {card?.trade_count ? (
-                      <p className="text-[10.5px] text-muted">
-                        {card.trade_count} trades
+                  </div>
+                  {card?.trade_count ? (
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+                        Trades
                       </p>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      Network
-                    </p>
-                    <div className="mt-0.5 text-[13px] text-foreground font-semibold">
-                      <span>{card?.followers_count ?? 0}</span>{" "}
-                      <span className="text-[11px] font-normal text-muted">
-                        followers
-                      </span>
+                      <p className="numeric text-[13px] font-semibold text-foreground mt-0.5">
+                        {card.trade_count}
+                      </p>
                     </div>
-                    <div className="text-[12px] text-muted">
-                      <span>{card?.following_count ?? 0}</span>{" "}
-                      <span className="text-[10.5px] font-normal text-muted">
-                        following
-                      </span>
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 {/* Footer: View Full Profile Link */}

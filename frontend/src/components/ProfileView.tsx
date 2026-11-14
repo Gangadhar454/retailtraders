@@ -96,16 +96,29 @@ export function ProfileView({ username }: { username: string }) {
 
   useEffect(() => {
     const handleFollowChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ username: string; following: boolean }>;
-      if (customEvent.detail?.username?.toLowerCase() === username.toLowerCase()) {
+      const customEvent = e as CustomEvent<{
+        username: string;
+        following: boolean;
+        followersCount?: number;
+        source?: string;
+      }>;
+      if (customEvent.detail?.source === "profile") return;
+      if (
+        customEvent.detail?.username?.toLowerCase() === username.toLowerCase()
+      ) {
         setIsFollowing(customEvent.detail.following);
-        setFollowersCount((prev) =>
-          customEvent.detail.following ? prev + 1 : Math.max(0, prev - 1),
-        );
+        if (typeof customEvent.detail.followersCount === "number") {
+          setFollowersCount(customEvent.detail.followersCount);
+        } else {
+          setFollowersCount((prev) =>
+            customEvent.detail.following ? prev + 1 : Math.max(0, prev - 1),
+          );
+        }
       }
     };
     window.addEventListener("netpnl:follow_change", handleFollowChange);
-    return () => window.removeEventListener("netpnl:follow_change", handleFollowChange);
+    return () =>
+      window.removeEventListener("netpnl:follow_change", handleFollowChange);
   }, [username]);
 
   if (loading && !data) {
@@ -160,18 +173,26 @@ export function ProfileView({ username }: { username: string }) {
     setFollowLoading(true);
 
     try {
+      let finalCount = 0;
       if (nextFollow) {
         const res = await publicApi.follow(username);
         setIsFollowing(res.is_following);
+        finalCount = res.followers_count;
         setFollowersCount(res.followers_count);
       } else {
         const res = await publicApi.unfollow(username);
         setIsFollowing(res.is_following);
+        finalCount = res.followers_count;
         setFollowersCount(res.followers_count);
       }
       window.dispatchEvent(
         new CustomEvent("netpnl:follow_change", {
-          detail: { username, following: nextFollow },
+          detail: {
+            username,
+            following: nextFollow,
+            followersCount: finalCount,
+            source: "profile",
+          },
         }),
       );
     } catch {
