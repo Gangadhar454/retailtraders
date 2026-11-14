@@ -8,9 +8,11 @@ import { motion } from "motion/react";
 
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { useAuth } from "@/components/AuthProvider";
+import { EditProfileModal } from "@/components/EditProfileModal";
 import { ExportModal } from "@/components/ExportModal";
 import { FollowModal } from "@/components/FollowModal";
 import { PostReactions } from "@/components/PostReactions";
+import { updateUserCardCache } from "@/components/UserHoverCard";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { UpiQr } from "@/components/UpiQr";
 import { publicApi } from "@/lib/api";
@@ -76,6 +78,7 @@ export function ProfileView({ username }: { username: string }) {
   const router = useRouter();
   const { user: authUser, isAuthenticated } = useAuth();
   const [exportOpen, setExportOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followModalTab, setFollowModalTab] = useState<"followers" | "following">("followers");
   const [followersCount, setFollowersCount] = useState(0);
@@ -116,10 +119,30 @@ export function ProfileView({ username }: { username: string }) {
         }
       }
     };
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        username: string;
+        display_name: string;
+        bio?: string | null;
+      }>;
+      if (
+        customEvent.detail?.username?.toLowerCase() === username.toLowerCase()
+      ) {
+        if (data) {
+          data.user.display_name = customEvent.detail.display_name;
+          data.user.bio = customEvent.detail.bio ?? null;
+        }
+      }
+    };
+
     window.addEventListener("netpnl:follow_change", handleFollowChange);
-    return () =>
+    window.addEventListener("netpnl:profile_updated", handleProfileUpdate);
+    return () => {
       window.removeEventListener("netpnl:follow_change", handleFollowChange);
-  }, [username]);
+      window.removeEventListener("netpnl:profile_updated", handleProfileUpdate);
+    };
+  }, [username, data]);
 
   if (loading && !data) {
     return (
@@ -185,6 +208,13 @@ export function ProfileView({ username }: { username: string }) {
         finalCount = res.followers_count;
         setFollowersCount(res.followers_count);
       }
+
+      updateUserCardCache(username, (prev) => ({
+        ...prev,
+        is_following: nextFollow,
+        followers_count: finalCount,
+      }));
+
       window.dispatchEvent(
         new CustomEvent("netpnl:follow_change", {
           detail: {
@@ -266,11 +296,22 @@ export function ProfileView({ username }: { username: string }) {
               </button>
             </div>
 
-            {user.bio && (
-              <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-ink-soft">
+            {user.bio ? (
+              <p className="mt-3 max-w-xl text-[13.5px] leading-relaxed text-ink-soft">
                 {user.bio}
               </p>
-            )}
+            ) : isSelf ? (
+              <button
+                type="button"
+                onClick={() => setEditProfileOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-brand hover:underline cursor-pointer select-none"
+              >
+                <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5 stroke-current">
+                  <path d="M12 5v14M5 12h14" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                Add a bio to your trader profile
+              </button>
+            ) : null}
           </div>
 
           <div className="text-right">
@@ -298,7 +339,44 @@ export function ProfileView({ username }: { username: string }) {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
-          {!isSelf && (
+          {isSelf ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditProfileOpen(true)}
+                className="btn-base btn-primary cursor-pointer select-none"
+              >
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 stroke-current">
+                  <path
+                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Edit profile
+              </button>
+              <Link
+                href="/settings"
+                className="btn-base btn-secondary cursor-pointer select-none"
+              >
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 stroke-current">
+                  <circle cx="12" cy="12" r="3" strokeWidth="2" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                    strokeWidth="2"
+                  />
+                </svg>
+                Account settings
+              </Link>
+            </>
+          ) : (
             <button
               type="button"
               onClick={handleToggleFollow}
@@ -543,6 +621,11 @@ export function ProfileView({ username }: { username: string }) {
           setFollowersCount(newFollowers);
           setFollowingCount(newFollowing);
         }}
+      />
+
+      <EditProfileModal
+        open={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
       />
     </div>
   );

@@ -29,6 +29,51 @@ import type { UserCard } from "@/lib/types";
 const userCardCache = new Map<string, UserCard>();
 const pendingCardRequests = new Map<string, Promise<UserCard>>();
 
+if (typeof window !== "undefined") {
+  window.addEventListener("netpnl:follow_change", (e: Event) => {
+    const customEvent = e as CustomEvent<{
+      username: string;
+      following: boolean;
+      followersCount?: number;
+    }>;
+    const targetUsername = customEvent.detail?.username;
+    if (!targetUsername) return;
+    const key = targetUsername.toLowerCase();
+    const existing = userCardCache.get(key);
+    if (existing) {
+      userCardCache.set(key, {
+        ...existing,
+        is_following: customEvent.detail.following,
+        followers_count:
+          typeof customEvent.detail.followersCount === "number"
+            ? customEvent.detail.followersCount
+            : customEvent.detail.following
+              ? existing.followers_count + 1
+              : Math.max(0, existing.followers_count - 1),
+      });
+    }
+  });
+
+  window.addEventListener("netpnl:profile_updated", (e: Event) => {
+    const customEvent = e as CustomEvent<{
+      username: string;
+      display_name: string;
+      bio?: string | null;
+    }>;
+    const detail = customEvent.detail;
+    if (!detail?.username) return;
+    const key = detail.username.toLowerCase();
+    const existing = userCardCache.get(key);
+    if (existing) {
+      userCardCache.set(key, {
+        ...existing,
+        display_name: detail.display_name,
+        bio: detail.bio ?? null,
+      });
+    }
+  });
+}
+
 export function updateUserCardCache(
   username: string,
   updater: (prev: UserCard) => UserCard,
@@ -85,10 +130,11 @@ export function UserHoverCard({
 
   const fetchCard = useCallback(async () => {
     const key = username.toLowerCase();
-    if (userCardCache.has(key)) {
-      setCard(userCardCache.get(key)!);
-      return;
+    const cached = userCardCache.get(key);
+    if (cached) {
+      setCard(cached);
     }
+
     if (pendingCardRequests.has(key)) {
       try {
         const data = await pendingCardRequests.get(key)!;
@@ -145,6 +191,11 @@ export function UserHoverCard({
       closeTimerRef.current = null;
     }
 
+    const cached = userCardCache.get(username.toLowerCase());
+    if (cached) {
+      setCard(cached);
+    }
+
     openTimerRef.current = setTimeout(() => {
       updatePosition();
       setIsOpen(true);
@@ -163,7 +214,7 @@ export function UserHoverCard({
     }, 250);
   };
 
-  // Listen for follow changes from other components (e.g. profile page or modal)
+  // Listen for follow changes and profile updates from other components
   useEffect(() => {
     const handleFollowChange = (e: Event) => {
       const customEvent = e as CustomEvent<{
@@ -177,23 +228,53 @@ export function UserHoverCard({
         customEvent.detail?.username?.toLowerCase() === username.toLowerCase()
       ) {
         setCard((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
+          const base = prev ?? userCardCache.get(username.toLowerCase());
+          if (!base) return null;
+          const updated = {
+            ...base,
             is_following: customEvent.detail.following,
             followers_count:
               typeof customEvent.detail.followersCount === "number"
                 ? customEvent.detail.followersCount
                 : customEvent.detail.following
-                  ? prev.followers_count + 1
-                  : Math.max(0, prev.followers_count - 1),
+                  ? base.followers_count + 1
+                  : Math.max(0, base.followers_count - 1),
           };
+          userCardCache.set(username.toLowerCase(), updated);
+          return updated;
         });
       }
     };
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        username: string;
+        display_name: string;
+        bio?: string | null;
+      }>;
+      if (
+        customEvent.detail?.username?.toLowerCase() === username.toLowerCase()
+      ) {
+        setCard((prev) => {
+          const base = prev ?? userCardCache.get(username.toLowerCase());
+          if (!base) return null;
+          const updated = {
+            ...base,
+            display_name: customEvent.detail.display_name,
+            bio: customEvent.detail.bio ?? null,
+          };
+          userCardCache.set(username.toLowerCase(), updated);
+          return updated;
+        });
+      }
+    };
+
     window.addEventListener("netpnl:follow_change", handleFollowChange);
-    return () =>
+    window.addEventListener("netpnl:profile_updated", handleProfileUpdate);
+    return () => {
       window.removeEventListener("netpnl:follow_change", handleFollowChange);
+      window.removeEventListener("netpnl:profile_updated", handleProfileUpdate);
+    };
   }, [username]);
 
   // Close on Escape or scroll

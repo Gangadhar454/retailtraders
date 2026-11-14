@@ -49,11 +49,14 @@ class UserRegisterRequest(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
-    display_name: str = Field(min_length=2, max_length=64)
+    display_name: str | None = Field(default=None, min_length=2, max_length=64)
+    bio: str | None = Field(default=None, max_length=280)
 
     @field_validator("display_name")
     @classmethod
-    def _clean_name(cls, value: str) -> str:
+    def _clean_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         clean = value.strip()
         if len(clean) < 2:
             raise ValueError("Display name must be at least 2 characters")

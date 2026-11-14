@@ -258,7 +258,7 @@ export const authApi = {
     return tokens;
   },
 
-  async updateProfile(input: { display_name: string }): Promise<CurrentUser> {
+  async updateProfile(input: { display_name?: string; bio?: string | null }): Promise<CurrentUser> {
     return apiFetch<CurrentUser>("/api/v1/auth/me", {
       method: "PATCH",
       body: input,

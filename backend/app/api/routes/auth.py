@@ -262,7 +262,11 @@ async def update_profile(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CurrentUserSchema:
-    current_user.display_name = payload.display_name.strip()
+    if "display_name" in payload.model_fields_set and payload.display_name is not None:
+        current_user.display_name = payload.display_name.strip()
+    if "bio" in payload.model_fields_set:
+        clean_bio = payload.bio.strip() if payload.bio else None
+        current_user.bio = clean_bio if clean_bio else None
     await db.commit()
     await db.refresh(current_user)
     return _public_user(current_user)  # type: ignore[return-value]
