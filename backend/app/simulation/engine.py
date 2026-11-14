@@ -12,7 +12,7 @@ import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,28 +87,21 @@ def is_market_open_ist() -> bool:
 def _generate_pnl(
     archetype: str,
     is_large_event: bool = False,
-    note_probability: float = 0.10,
+    note_probability: float = 0.0,
 ) -> tuple[float, int, str | None]:
     """
-    Generates realistic P&L amount, trade count, and authentic notes based on trader archetype.
-    By default, only ~10% of trades include a note/comment, reflecting authentic retail trader behavior.
+    Generates realistic P&L amount and trade count based on trader archetype.
+    Simulated posts do not include comments/notes.
     """
-    has_note = random.random() < note_probability
-    note: str | None = None
-
     if archetype == "options_seller":
         # 68% win rate, steady small greens, occasional loss
         is_profit = random.random() < 0.68
         if is_profit:
             pnl = round(random.uniform(1200, 9500), 2)
             trades = random.randint(2, 6)
-            if has_note:
-                note = random.choice(AUTHENTIC_NOTES["profit_modest"])
         else:
             pnl = round(-random.uniform(2500, 16000), 2)
             trades = random.randint(2, 6)
-            if has_note:
-                note = random.choice(AUTHENTIC_NOTES["loss_small"] + AUTHENTIC_NOTES["loss_medium"])
 
     elif archetype == "scalper":
         # 52% win rate, tight stops, modest numbers
@@ -116,12 +109,8 @@ def _generate_pnl(
         trades = random.randint(3, 10)
         if is_profit:
             pnl = round(random.uniform(900, 6800), 2)
-            if has_note:
-                note = random.choice(AUTHENTIC_NOTES["profit_modest"])
         else:
             pnl = round(-random.uniform(700, 4800), 2)
-            if has_note:
-                note = random.choice(AUTHENTIC_NOTES["loss_small"])
 
     elif archetype == "expiry_gambler":
         # High volatility, loss-heavy, occasional windfall or Hall of Pain
@@ -129,18 +118,12 @@ def _generate_pnl(
         trades = random.randint(6, 32)
         if is_profit:
             pnl = round(random.uniform(8000, 52000), 2)
-            if has_note:
-                note = random.choice(AUTHENTIC_NOTES["profit_good"])
         else:
             if is_large_event and random.random() < 0.15:
                 # Hall of pain loss
                 pnl = round(-random.uniform(45000, 140000), 2)
-                if has_note:
-                    note = random.choice(AUTHENTIC_NOTES["loss_large"])
             else:
                 pnl = round(-random.uniform(3500, 26000), 2)
-                if has_note:
-                    note = random.choice(AUTHENTIC_NOTES["loss_medium"])
 
     elif archetype == "swing_trader":
         # Lower trade count, balanced
@@ -148,12 +131,8 @@ def _generate_pnl(
         trades = random.randint(1, 3)
         if is_profit:
             pnl = round(random.uniform(3000, 18000), 2)
-            if has_note:
-                note = "Positional target achieved. Trailed SL."
         else:
             pnl = round(-random.uniform(2000, 11000), 2)
-            if has_note:
-                note = "Swing stop loss hit at key support."
 
     else:
         # Default options_buyer: ~86% loss rate (reflects retail market realities)
@@ -161,23 +140,15 @@ def _generate_pnl(
         trades = random.randint(4, 22)
         if is_profit:
             pnl = round(random.uniform(1800, 24000), 2)
-            if has_note:
-                note = random.choice(AUTHENTIC_NOTES["profit_modest"] + AUTHENTIC_NOTES["profit_good"])
         else:
             if random.random() < 0.08:
                 pnl = round(-random.uniform(25000, 65000), 2)
-                if has_note:
-                    note = random.choice(AUTHENTIC_NOTES["loss_large"])
             elif random.random() < 0.40:
                 pnl = round(-random.uniform(5000, 18000), 2)
-                if has_note:
-                    note = random.choice(AUTHENTIC_NOTES["loss_medium"])
             else:
                 pnl = round(-random.uniform(800, 4500), 2)
-                if has_note:
-                    note = random.choice(AUTHENTIC_NOTES["loss_small"])
 
-    return pnl, trades, note
+    return pnl, trades, None
 
 
 INTRADAY_NOTES = {
@@ -202,69 +173,36 @@ def _generate_intraday_delta(
     archetype: str,
     current_pnl: float,
     current_trades: int,
-    note_probability: float = 0.10,
+    note_probability: float = 0.0,
 ) -> tuple[float, int, str | None]:
-    """Generates an authentic intraday P&L adjustment, extra trades, and optional note."""
-    has_note = random.random() < note_probability
-    note: str | None = None
-
+    """Generates an authentic intraday P&L adjustment and extra trades."""
     if archetype == "options_seller":
         is_profit = random.random() < 0.70
         trades = 1 if current_trades >= 12 else random.randint(1, 2)
-        if is_profit:
-            delta = round(random.uniform(400, 2200), 2)
-            if has_note:
-                note = "Theta decay working nicely into the afternoon."
-        else:
-            delta = round(-random.uniform(800, 3800), 2)
-            if has_note:
-                note = "Adjusted leg after sudden index move."
+        delta = round(random.uniform(400, 2200), 2) if is_profit else round(-random.uniform(800, 3800), 2)
 
     elif archetype == "scalper":
         is_profit = random.random() < 0.50
         trades = 1 if current_trades >= 20 else random.randint(1, 3)
-        if is_profit:
-            delta = round(random.uniform(350, 2000), 2)
-            if has_note:
-                note = random.choice(INTRADAY_NOTES["profit"])
-        else:
-            delta = round(-random.uniform(400, 1800), 2)
-            if has_note:
-                note = random.choice(INTRADAY_NOTES["loss"])
+        delta = round(random.uniform(350, 2000), 2) if is_profit else round(-random.uniform(400, 1800), 2)
 
     elif archetype == "expiry_gambler":
         is_profit = random.random() < 0.25
         trades = 1 if current_trades >= 35 else random.randint(2, 6)
-        if is_profit:
-            delta = round(random.uniform(3500, 22000), 2)
-            if has_note:
-                note = "Zero-hero call doubled into the close."
-        else:
-            delta = round(-random.uniform(2500, 18000), 2)
-            if has_note:
-                note = "Out-of-the-money premium decayed to zero."
+        delta = round(random.uniform(3500, 22000), 2) if is_profit else round(-random.uniform(2500, 18000), 2)
 
     elif archetype == "swing_trader":
         is_profit = random.random() < 0.50
         trades = 0 if current_trades >= 4 else 1
         delta = round(random.uniform(500, 1800), 2) if is_profit else round(-random.uniform(400, 1400), 2)
-        if has_note:
-            note = "Partial profit booked on swing basket."
 
     else:
         # Default options_buyer
         is_profit = random.random() < 0.20
         trades = 1 if current_trades >= 22 else random.randint(1, 4)
-        if is_profit:
-            delta = round(random.uniform(1200, 7500), 2)
-            if has_note:
-                note = random.choice(INTRADAY_NOTES["profit"])
-        else:
-            delta = round(-random.uniform(1500, 8500), 2)
-            if has_note:
-                note = random.choice(INTRADAY_NOTES["loss"])
+        delta = round(random.uniform(1200, 7500), 2) if is_profit else round(-random.uniform(1500, 8500), 2)
 
-    return delta, trades, note
+    return delta, trades, None
 
 
 async def ensure_cohort_seeded(db: AsyncSession) -> int:
@@ -307,7 +245,7 @@ async def ensure_cohort_seeded(db: AsyncSession) -> int:
                 password_hash=dummy_hash,
                 display_name=p["display_name"],
                 username=p["username"],
-                bio=p["bio"],
+                bio=None,
                 avatar_seed=p["avatar_seed"],
                 verified_upi_id=p["upi_id"],
                 upi_verified_name=p["display_name"] if p["upi_id"] else None,
@@ -385,7 +323,7 @@ async def ensure_cohort_seeded(db: AsyncSession) -> int:
             if random.random() > persona_info["activity_prob"]:
                 continue
 
-            pnl, trades, note = _generate_pnl(persona_info["archetype"], note_probability=0.10)
+            pnl, trades, _ = _generate_pnl(persona_info["archetype"])
             # Generate realistic timestamp during market hours for that day
             hour = random.randint(9, 15)
             minute = random.randint(15, 55)
@@ -414,7 +352,7 @@ async def ensure_cohort_seeded(db: AsyncSession) -> int:
                 has_manual_entry=not record_verified,
                 manual_net_pnl=None if record_verified else pnl,
                 trade_count=trades,
-                notes=note,
+                notes=None,
                 is_simulated=True,
                 created_at=created_dt.astimezone(timezone.utc),
             )
@@ -425,34 +363,18 @@ async def ensure_cohort_seeded(db: AsyncSession) -> int:
         await db.commit()
         logger.info("Backfilled %d historical records for simulated cohort", records_created)
 
-    # Normalize notes ratio in existing simulated records to ~10%
-    sim_records_with_notes = (
-        await db.scalars(
-            select(PnLRecord).where(
-                and_(
-                    PnLRecord.is_simulated.is_(True),
-                    PnLRecord.notes.is_not(None),
-                )
-            )
-        )
-    ).all()
-    total_sim_count = await db.scalar(
-        select(func.count(PnLRecord.record_id)).where(PnLRecord.is_simulated.is_(True))
+    # Ensure all simulated users have no bio and simulated posts have no notes/comments
+    await db.execute(
+        update(User)
+        .where(User.is_simulated.is_(True))
+        .values(bio=None)
     )
-    if total_sim_count and len(sim_records_with_notes) > 0:
-        ratio = len(sim_records_with_notes) / total_sim_count
-        if ratio > 0.15:
-            target_keep = max(1, int(total_sim_count * 0.10))
-            to_clear_count = len(sim_records_with_notes) - target_keep
-            if to_clear_count > 0:
-                to_clear = random.sample(list(sim_records_with_notes), to_clear_count)
-                for r in to_clear:
-                    r.notes = None
-                await db.commit()
-                logger.info(
-                    "Normalized simulated notes: cleared %d notes to achieve ~10%% comment ratio",
-                    to_clear_count,
-                )
+    await db.execute(
+        update(PnLRecord)
+        .where(PnLRecord.is_simulated.is_(True))
+        .values(notes=None)
+    )
+    await db.commit()
 
     return len(existing_users)
 
@@ -525,7 +447,7 @@ async def trigger_burst(db: AsyncSession, count: int = 5) -> list[dict[str, Any]
                 "display_name": user.display_name,
             })
 
-            pnl, trades, note = _generate_pnl(persona_info["archetype"], is_large_event=True, note_probability=0.10)
+            pnl, trades, _ = _generate_pnl(persona_info["archetype"], is_large_event=True)
 
             # 40% verified logic based on persona
             is_verified_trader = bool(persona_info.get("verified_broker"))
@@ -550,7 +472,7 @@ async def trigger_burst(db: AsyncSession, count: int = 5) -> list[dict[str, Any]
                 has_manual_entry=not record_verified,
                 manual_net_pnl=None if record_verified else pnl,
                 trade_count=trades,
-                notes=note,
+                notes=None,
                 is_simulated=True,
                 created_at=now_utc,
                 updated_at=now_utc,
@@ -565,7 +487,7 @@ async def trigger_burst(db: AsyncSession, count: int = 5) -> list[dict[str, Any]
                 "is_verified": record_verified,
                 "broker_source": broker_name_str,
                 "trade_count": trades,
-                "notes": note,
+                "notes": None,
                 "date": str(today),
                 "created_at": now_utc.isoformat(),
                 "is_update": False,
@@ -581,19 +503,17 @@ async def trigger_burst(db: AsyncSession, count: int = 5) -> list[dict[str, Any]
                 "display_name": user.display_name,
             })
 
-            delta, extra_trades, note = _generate_intraday_delta(
+            delta, extra_trades, _ = _generate_intraday_delta(
                 persona_info["archetype"],
                 rec.net_pnl,
                 rec.trade_count,
-                note_probability=0.10,
             )
 
             rec.trade_count += extra_trades
             rec.net_pnl = round(rec.net_pnl + delta, 2)
             if rec.has_manual_entry:
                 rec.manual_net_pnl = rec.net_pnl
-            if note:
-                rec.notes = note
+            rec.notes = None
             rec.created_at = now_utc
             rec.updated_at = now_utc
 
@@ -605,7 +525,7 @@ async def trigger_burst(db: AsyncSession, count: int = 5) -> list[dict[str, Any]
                 "is_verified": rec.is_verified,
                 "broker_source": rec.broker_source,
                 "trade_count": rec.trade_count,
-                "notes": rec.notes,
+                "notes": None,
                 "date": str(today),
                 "created_at": now_utc.isoformat(),
                 "is_update": True,
