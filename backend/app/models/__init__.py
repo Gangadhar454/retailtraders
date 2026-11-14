@@ -109,6 +109,12 @@ class User(Base):
     broker_pnl_daily: Mapped[list[BrokerPnLDaily]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
+    following_links: Mapped[list[UserFollow]] = relationship(
+        "UserFollow", foreign_keys="UserFollow.follower_id", back_populates="follower", cascade="all, delete-orphan"
+    )
+    follower_links: Mapped[list[UserFollow]] = relationship(
+        "UserFollow", foreign_keys="UserFollow.following_id", back_populates="following", cascade="all, delete-orphan"
+    )
 
 
 class LinkedBroker(Base):
@@ -305,4 +311,36 @@ class PostReaction(Base):
     __table_args__ = (
         UniqueConstraint("record_id", "client_id", "reaction_type", name="uq_post_reaction_client"),
         Index("ix_post_reactions_record_type", "record_id", "reaction_type"),
+    )
+
+
+class UserFollow(Base):
+    """Trader follow relationship (follower follows following)."""
+
+    __tablename__ = "user_follows"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    follower_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), index=True
+    )
+    following_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+    follower: Mapped[User] = relationship(
+        "User", foreign_keys=[follower_id], back_populates="following_links"
+    )
+    following: Mapped[User] = relationship(
+        "User", foreign_keys=[following_id], back_populates="follower_links"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("follower_id", "following_id", name="uq_user_follows"),
+        Index("ix_user_follows_follower_created", "follower_id", "created_at"),
+        Index("ix_user_follows_following_created", "following_id", "created_at"),
     )

@@ -6,10 +6,12 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DbSession
+from app.api.deps import CurrentUser, DbSession, OptionalUser
 from app.models import LinkedBroker, PnLRecord, User
 from app.schemas import (
     DonateEligibility,
+    FollowListResponse,
+    FollowStatusResponse,
     LinkedBrokerOut,
     PerformancePoint,
     PnLRecordOut,
@@ -17,7 +19,17 @@ from app.schemas import (
     PublicUser,
     UpiIntentResponse,
     UpiStatus,
+    UserCardResponse,
     UserProfileResponse,
+)
+from app.services.follows import (
+    follow_user,
+    get_follow_counts,
+    get_followers,
+    get_following,
+    get_user_card,
+    is_following,
+    unfollow_user,
 )
 from app.services.performance import PnLPoint, compute_stats
 from app.services.reactions import get_reaction_summary
@@ -55,6 +67,7 @@ def _broker_out(link: LinkedBroker | None) -> LinkedBrokerOut | None:
 async def get_profile(
     username: str,
     db: DbSession,
+    current_user: OptionalUser = None,
     limit: int = Query(default=180, ge=1, le=1000),
     x_client_id: str | None = Header(default=None, alias="X-Client-Id"),
 ) -> UserProfileResponse:
@@ -107,6 +120,9 @@ async def get_profile(
     )
 
     can_tip = user.upi_verification_status == "VERIFIED" and bool(user.verified_upi_id)
+    followers_cnt, following_cnt = await get_follow_counts(db, user.user_id)
+    viewer_id = current_user.user_id if current_user else None
+    is_following_user = await is_following(db, viewer_id, user.user_id)
 
     return UserProfileResponse(
         user=_public(user),
@@ -138,6 +154,111 @@ async def get_profile(
         ),
         linked_broker=_broker_out(link),
         can_tip=can_tip,
+        followers_count=followers_cnt,
+        following_count=following_cnt,
+        is_following=is_following_user,
+    )
+
+
+@router.get("/{username}/card", response_model=UserCardResponse)
+async def get_user_card_route(
+    username: str,
+    db: DbSession,
+    current_user: OptionalUser = None,
+) -> UserCardResponse:
+    viewer_id = current_user.user_id if current_user else None
+    return await get_user_card(db, username, viewer_id)
+
+
+@router.post("/{username}/follow", response_model=FollowStatusResponse)
+async def follow_user_route(
+    username: str,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> FollowStatusResponse:
+    target = await db.scalar(select(User).where(User.username == username.lower()))
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="Trader not found")
+    if target.user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="You cannot follow yourself")
+
+    is_following_val, followers_cnt, following_cnt = await follow_user(
+        db, follower_id=current_user.user_id, following_id=target.user_id
+    )
+    return FollowStatusResponse(
+        is_following=is_following_val,
+        followers_count=followers_cnt,
+        following_count=following_cnt,
+    )
+
+
+@router.delete("/{username}/follow", response_model=FollowStatusResponse)
+async def unfollow_user_route(
+    username: str,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> FollowStatusResponse:
+    target = await db.scalar(select(User).where(User.username == username.lower()))
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="Trader not found")
+
+    is_following_val, followers_cnt, following_cnt = await unfollow_user(
+        db, follower_id=current_user.user_id, following_id=target.user_id
+    )
+    return FollowStatusResponse(
+        is_following=is_following_val,
+        followers_count=followers_cnt,
+        following_count=following_cnt,
+    )
+
+
+@router.post("/{username}/unfollow", response_model=FollowStatusResponse)
+async def unfollow_user_post_route(
+    username: str,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> FollowStatusResponse:
+    """Convenience POST endpoint for unfollowing."""
+    return await unfollow_user_route(username, db, current_user)
+
+
+@router.get("/{username}/followers", response_model=FollowListResponse)
+async def get_followers_route(
+    username: str,
+    db: DbSession,
+    current_user: OptionalUser = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> FollowListResponse:
+    target = await db.scalar(select(User).where(User.username == username.lower()))
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="Trader not found")
+    viewer_id = current_user.user_id if current_user else None
+    users, total = await get_followers(db, target.user_id, viewer_id, limit=limit, offset=offset)
+    return FollowListResponse(
+        users=users,
+        total=total,
+        has_more=(offset + len(users)) < total,
+    )
+
+
+@router.get("/{username}/following", response_model=FollowListResponse)
+async def get_following_route(
+    username: str,
+    db: DbSession,
+    current_user: OptionalUser = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> FollowListResponse:
+    target = await db.scalar(select(User).where(User.username == username.lower()))
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="Trader not found")
+    viewer_id = current_user.user_id if current_user else None
+    users, total = await get_following(db, target.user_id, viewer_id, limit=limit, offset=offset)
+    return FollowListResponse(
+        users=users,
+        total=total,
+        has_more=(offset + len(users)) < total,
     )
 
 

@@ -6,6 +6,7 @@ import { useCallback, useMemo } from "react";
 import { publicApi } from "@/lib/api";
 import { formatRelative, formatSignedINR } from "@/lib/format";
 import { usePolling } from "@/lib/hooks";
+import { UserHoverCard } from "@/components/UserHoverCard";
 import type { FeedEntry, FeedResponse } from "@/lib/types";
 
 function initials(name: string): string {
@@ -23,31 +24,42 @@ function TapeChip({
   ariaHidden?: boolean;
 }) {
   return (
-    <Link
-      href={`/u/${entry.user.username}`}
-      tabIndex={ariaHidden ? -1 : undefined}
-      aria-hidden={ariaHidden}
-      className="row-hover flex shrink-0 items-center gap-2 rounded border border-line bg-surface px-2.5 py-1.5 shadow-2xs transition-colors hover:border-brand/40 hover:bg-brand-soft/40"
+    <UserHoverCard
+      username={entry.user.username}
+      initialData={{
+        displayName: entry.user.display_name,
+        avatarSeed: entry.user.avatar_seed || entry.user.username,
+        isVerified: entry.record.is_verified,
+        netPnl: entry.record.net_pnl,
+      }}
+      className="shrink-0"
     >
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-brand-soft text-[9px] font-bold text-brand">
-        {initials(entry.user.display_name)}
-      </span>
-      <span className="min-w-0">
-        <span className="block max-w-[7.5rem] truncate text-[12px] font-semibold text-foreground">
-          {entry.user.display_name}
-        </span>
-        <span className="block text-[10.5px] text-muted">
-          {formatRelative(entry.record.created_at)}
-        </span>
-      </span>
-      <span
-        className={`numeric text-[12px] font-semibold ${
-          entry.record.net_pnl < 0 ? "text-loss" : "text-profit"
-        }`}
+      <Link
+        href={`/u/${entry.user.username}`}
+        tabIndex={ariaHidden ? -1 : undefined}
+        aria-hidden={ariaHidden}
+        className="row-hover flex shrink-0 items-center gap-2 rounded border border-line bg-surface px-2.5 py-1.5 shadow-2xs transition-colors hover:border-brand/40 hover:bg-brand-soft/40"
       >
-        {formatSignedINR(entry.record.net_pnl)}
-      </span>
-    </Link>
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-brand-soft text-[9px] font-bold text-brand">
+          {initials(entry.user.display_name)}
+        </span>
+        <span className="min-w-0">
+          <span className="block max-w-[7.5rem] truncate text-[12px] font-semibold text-foreground">
+            {entry.user.display_name}
+          </span>
+          <span className="block text-[10.5px] text-muted">
+            {formatRelative(entry.record.created_at)}
+          </span>
+        </span>
+        <span
+          className={`numeric text-[12px] font-semibold ${
+            entry.record.net_pnl < 0 ? "text-loss" : "text-profit"
+          }`}
+        >
+          {formatSignedINR(entry.record.net_pnl)}
+        </span>
+      </Link>
+    </UserHoverCard>
   );
 }
 

@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { DonateModal } from "@/components/DonateModal";
 import { PnlTicker } from "@/components/AnimatedNumber";
 import { PostReactions } from "@/components/PostReactions";
+import { UserHoverCard } from "@/components/UserHoverCard";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { avatarInk, avatarTint, formatDate, formatPostDateTime, initials, pnlTone } from "@/lib/format";
 import { publicApi } from "@/lib/api";
@@ -139,26 +140,48 @@ function LeaderboardRow({
       </span>
 
       <div className="flex min-w-0 items-start gap-3">
-        <Link href={`/u/${entry.user.username}`} className="shrink-0 mt-0.5">
-          <span
-            className="grid h-8 w-8 place-items-center rounded text-[11px] font-bold"
-            style={{
-              background: avatarTint(seed),
-              color: avatarInk(seed),
-            }}
-          >
-            {initials(entry.user.display_name)}
-          </span>
-        </Link>
+        <UserHoverCard
+          username={entry.user.username}
+          initialData={{
+            displayName: entry.user.display_name,
+            avatarSeed: seed,
+            isVerified: entry.is_verified,
+            netPnl: entry.net_pnl,
+          }}
+          className="shrink-0 mt-0.5"
+        >
+          <Link href={`/u/${entry.user.username}`}>
+            <span
+              className="grid h-8 w-8 place-items-center rounded text-[11px] font-bold"
+              style={{
+                background: avatarTint(seed),
+                color: avatarInk(seed),
+              }}
+            >
+              {initials(entry.user.display_name)}
+            </span>
+          </Link>
+        </UserHoverCard>
 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Link
-              href={`/u/${entry.user.username}`}
-              className="truncate text-[13.5px] font-semibold text-foreground transition-colors hover:text-brand"
+            <UserHoverCard
+              username={entry.user.username}
+              initialData={{
+                displayName: entry.user.display_name,
+                avatarSeed: seed,
+                isVerified: entry.is_verified,
+                netPnl: entry.net_pnl,
+              }}
+              className="truncate"
             >
-              {entry.user.display_name}
-            </Link>
+              <Link
+                href={`/u/${entry.user.username}`}
+                className="truncate text-[13.5px] font-semibold text-foreground transition-colors hover:text-brand"
+              >
+                {entry.user.display_name}
+              </Link>
+            </UserHoverCard>
             {entry.is_verified ? (
               <VerifiedBadge size="sm" label="Verified" />
             ) : (

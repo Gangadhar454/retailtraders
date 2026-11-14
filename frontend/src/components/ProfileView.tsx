@@ -2,11 +2,13 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
 
 import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { useAuth } from "@/components/AuthProvider";
 import { ExportModal } from "@/components/ExportModal";
+import { FollowModal } from "@/components/FollowModal";
 import { PostReactions } from "@/components/PostReactions";
 import { UnverifiedBadge, VerifiedBadge } from "@/components/VerifiedBadge";
 import { UpiQr } from "@/components/UpiQr";
@@ -70,10 +72,39 @@ function StatCell({
 }
 
 export function ProfileView({ username }: { username: string }) {
+  const { user: authUser, isAuthenticated } = useAuth();
   const [exportOpen, setExportOpen] = useState(false);
+  const [followModalOpen, setFollowModalOpen] = useState(false);
+  const [followModalTab, setFollowModalTab] = useState<"followers" | "following">("followers");
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const load = useCallback(() => publicApi.profile(username), [username]);
   const { data, loading, error } = usePolling<UserProfile>(load, 15_000, true, username);
+
+  useEffect(() => {
+    if (data) {
+      setFollowersCount(data.followers_count ?? 0);
+      setFollowingCount(data.following_count ?? 0);
+      setIsFollowing(Boolean(data.is_following));
+    }
+  }, [data]);
+
+  useEffect(() => {
+    const handleFollowChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ username: string; following: boolean }>;
+      if (customEvent.detail?.username?.toLowerCase() === username.toLowerCase()) {
+        setIsFollowing(customEvent.detail.following);
+        setFollowersCount((prev) =>
+          customEvent.detail.following ? prev + 1 : Math.max(0, prev - 1),
+        );
+      }
+    };
+    window.addEventListener("netpnl:follow_change", handleFollowChange);
+    return () => window.removeEventListener("netpnl:follow_change", handleFollowChange);
+  }, [username]);
 
   if (loading && !data) {
     return (
@@ -109,6 +140,45 @@ export function ProfileView({ username }: { username: string }) {
   function scrollToTip() {
     document.getElementById("tip-box")?.scrollIntoView({ behavior: "smooth" });
   }
+
+  const isSelf = Boolean(
+    authUser && authUser.username.toLowerCase() === username.toLowerCase(),
+  );
+
+  const handleToggleFollow = async () => {
+    if (!isAuthenticated) {
+      window.location.href = "/login";
+      return;
+    }
+    if (isSelf || followLoading) return;
+
+    const nextFollow = !isFollowing;
+    setIsFollowing(nextFollow);
+    setFollowersCount((prev) => (nextFollow ? prev + 1 : Math.max(0, prev - 1)));
+    setFollowLoading(true);
+
+    try {
+      if (nextFollow) {
+        const res = await publicApi.follow(username);
+        setIsFollowing(res.is_following);
+        setFollowersCount(res.followers_count);
+      } else {
+        const res = await publicApi.unfollow(username);
+        setIsFollowing(res.is_following);
+        setFollowersCount(res.followers_count);
+      }
+      window.dispatchEvent(
+        new CustomEvent("netpnl:follow_change", {
+          detail: { username, following: nextFollow },
+        }),
+      );
+    } catch {
+      setIsFollowing(!nextFollow);
+      setFollowersCount((prev) => (!nextFollow ? prev + 1 : Math.max(0, prev - 1)));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const seed = user.avatar_seed || user.username;
 
@@ -146,6 +216,33 @@ export function ProfileView({ username }: { username: string }) {
               {formatDateLong(user.created_at)}
             </p>
 
+            {/* Followers & Following Counts */}
+            <div className="mt-2 flex items-center gap-3 text-[13px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowModalTab("followers");
+                  setFollowModalOpen(true);
+                }}
+                className="group inline-flex items-center gap-1.5 font-medium text-foreground hover:text-brand transition-colors cursor-pointer select-none"
+              >
+                <span className="font-bold">{followersCount}</span>
+                <span className="text-muted group-hover:text-brand transition-colors">followers</span>
+              </button>
+              <span className="text-muted opacity-60" aria-hidden>&middot;</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowModalTab("following");
+                  setFollowModalOpen(true);
+                }}
+                className="group inline-flex items-center gap-1.5 font-medium text-foreground hover:text-brand transition-colors cursor-pointer select-none"
+              >
+                <span className="font-bold">{followingCount}</span>
+                <span className="text-muted group-hover:text-brand transition-colors">following</span>
+              </button>
+            </div>
+
             {user.bio && (
               <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-ink-soft">
                 {user.bio}
@@ -178,6 +275,41 @@ export function ProfileView({ username }: { username: string }) {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
+          {!isSelf && (
+            <button
+              type="button"
+              onClick={handleToggleFollow}
+              disabled={followLoading}
+              className={`btn-base group cursor-pointer select-none ${
+                isFollowing
+                  ? "btn-secondary hover:border-loss/40 hover:bg-loss-soft hover:text-loss"
+                  : "btn-primary"
+              }`}
+            >
+              {isFollowing ? (
+                <>
+                  <span className="group-hover:hidden">Following</span>
+                  <span className="hidden group-hover:inline">Unfollow</span>
+                </>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 stroke-current">
+                    <path
+                      d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="9" cy="7" r="4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="19" y1="8" x2="19" y2="14" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="22" y1="11" x2="16" y2="11" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Follow
+                </>
+              )}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setExportOpen(true)}
@@ -375,6 +507,19 @@ export function ProfileView({ username }: { username: string }) {
         isVerified={Boolean(today?.is_verified)}
         upi={upi}
         tradeCount={today?.trade_count ?? 0}
+      />
+
+      <FollowModal
+        open={followModalOpen}
+        onClose={() => setFollowModalOpen(false)}
+        username={user.username}
+        initialTab={followModalTab}
+        followersCount={followersCount}
+        followingCount={followingCount}
+        onCountsChange={(newFollowers, newFollowing) => {
+          setFollowersCount(newFollowers);
+          setFollowingCount(newFollowing);
+        }}
       />
     </div>
   );

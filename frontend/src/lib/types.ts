@@ -215,6 +215,51 @@ export interface UserProfile {
   upi: UpiStatus;
   linked_broker: LinkedBroker | null;
   can_tip: boolean;
+  followers_count?: number;
+  following_count?: number;
+  is_following?: boolean;
+}
+
+export interface UserCard {
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_seed: string;
+  bio: string | null;
+  created_at: string;
+  is_verified_publisher: boolean;
+  total_pnl: number;
+  today_pnl?: number | null;
+  trade_count: number;
+  followers_count: number;
+  following_count: number;
+  is_following: boolean;
+  is_self: boolean;
+}
+
+export interface FollowStatusResponse {
+  is_following: boolean;
+  followers_count: number;
+  following_count: number;
+}
+
+export interface FollowUser {
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_seed: string;
+  bio: string | null;
+  created_at: string;
+  is_verified_publisher: boolean;
+  total_pnl: number;
+  is_following: boolean;
+  is_self: boolean;
+}
+
+export interface FollowListResponse {
+  users: FollowUser[];
+  total: number;
+  has_more: boolean;
 }
 
 export interface VerifyPnlResponse {

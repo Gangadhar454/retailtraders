@@ -3,6 +3,9 @@ import type {
   CurrentUser,
   DonateEligibility,
   FeedResponse,
+  FollowListResponse,
+  FollowStatusResponse,
+  FollowUser,
   LeaderboardResponse,
   LinkedBroker,
   PublishHistoryResponse,
@@ -12,6 +15,7 @@ import type {
   UpiIntent,
   UpiStatus,
   UpiVerifyResponse,
+  UserCard,
   UserProfile,
   VerifyPnlResponse,
 } from "./types";
@@ -371,7 +375,46 @@ export const publicApi = {
   },
 
   profile: (username: string): Promise<UserProfile> =>
-    apiFetch<UserProfile>(`/api/v1/users/${encodeURIComponent(username)}`),
+    apiFetch<UserProfile>(`/api/v1/users/${encodeURIComponent(username)}`, {
+      auth: Boolean(getAccessToken()),
+    }),
+
+  userCard: (username: string): Promise<UserCard> =>
+    apiFetch<UserCard>(`/api/v1/users/${encodeURIComponent(username)}/card`, {
+      auth: Boolean(getAccessToken()),
+    }),
+
+  followers: (
+    username: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<FollowListResponse> =>
+    apiFetch<FollowListResponse>(
+      `/api/v1/users/${encodeURIComponent(username)}/followers?limit=${limit}&offset=${offset}`,
+      { auth: Boolean(getAccessToken()) },
+    ),
+
+  following: (
+    username: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<FollowListResponse> =>
+    apiFetch<FollowListResponse>(
+      `/api/v1/users/${encodeURIComponent(username)}/following?limit=${limit}&offset=${offset}`,
+      { auth: Boolean(getAccessToken()) },
+    ),
+
+  follow: (username: string): Promise<FollowStatusResponse> =>
+    apiFetch<FollowStatusResponse>(
+      `/api/v1/users/${encodeURIComponent(username)}/follow`,
+      { method: "POST", auth: true },
+    ),
+
+  unfollow: (username: string): Promise<FollowStatusResponse> =>
+    apiFetch<FollowStatusResponse>(
+      `/api/v1/users/${encodeURIComponent(username)}/follow`,
+      { method: "DELETE", auth: true },
+    ),
 
   /** Brokers the user can pick when publishing P&L. */
   supportedBrokers: (): Promise<BrokerOption[]> =>

@@ -409,6 +409,51 @@ class UserProfileResponse(BaseModel):
     upi: UpiStatus
     linked_broker: LinkedBrokerOut | None = None
     can_tip: bool = False
+    followers_count: int = 0
+    following_count: int = 0
+    is_following: bool = False
+
+
+class FollowStatusResponse(BaseModel):
+    is_following: bool
+    followers_count: int
+    following_count: int
+
+
+class FollowUserOut(BaseModel):
+    user_id: uuid.UUID
+    username: str
+    display_name: str
+    avatar_seed: str = ""
+    bio: str | None = None
+    created_at: UtcDateTime
+    is_verified_publisher: bool = False
+    total_pnl: float = 0.0
+    is_following: bool = False
+    is_self: bool = False
+
+
+class FollowListResponse(BaseModel):
+    users: list[FollowUserOut]
+    total: int
+    has_more: bool = False
+
+
+class UserCardResponse(BaseModel):
+    user_id: uuid.UUID
+    username: str
+    display_name: str
+    avatar_seed: str = ""
+    bio: str | None = None
+    created_at: UtcDateTime
+    is_verified_publisher: bool = False
+    total_pnl: float = 0.0
+    today_pnl: float | None = None
+    trade_count: int = 0
+    followers_count: int = 0
+    following_count: int = 0
+    is_following: bool = False
+    is_self: bool = False
 
 
 class UpiIntentResponse(BaseModel):
