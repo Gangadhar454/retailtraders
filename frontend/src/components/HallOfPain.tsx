@@ -207,7 +207,19 @@ function LeaderboardRow({
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-2 text-[12px] text-muted">
-            <span className="font-mono">@{entry.user.username}</span>
+            <UserHoverCard
+              username={entry.user.username}
+              initialData={{
+                displayName: entry.user.display_name,
+                avatarSeed: seed,
+                isVerified: entry.is_verified,
+                netPnl: entry.net_pnl,
+              }}
+            >
+              <Link href={`/u/${entry.user.username}`} className="font-mono hover:text-brand transition-colors">
+                @{entry.user.username}
+              </Link>
+            </UserHoverCard>
             <span aria-hidden>&middot;</span>
             <span className="numeric">
               {mode === "cumulative"
