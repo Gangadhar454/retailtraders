@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -46,6 +47,7 @@ export function UserHoverCard({
   initialData,
   className = "inline-flex",
 }: UserHoverCardProps) {
+  const router = useRouter();
   const { user: authUser, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [card, setCard] = useState<UserCard | null>(
@@ -144,7 +146,11 @@ export function UserHoverCard({
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      window.location.href = "/login";
+      const currentPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : `/u/${username}`;
+      router.push(`/login?next=${encodeURIComponent(currentPath)}`);
       return;
     }
     if (!card || followLoading || card.is_self) return;

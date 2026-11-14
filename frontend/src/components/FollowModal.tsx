@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -35,6 +36,7 @@ export function FollowModal({
   followingCount,
   onCountsChange,
 }: FollowModalProps) {
+  const router = useRouter();
   const { user: authUser, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState<"followers" | "following">(initialTab);
   const [users, setUsers] = useState<FollowUser[]>([]);
@@ -82,7 +84,11 @@ export function FollowModal({
 
   const handleToggleFollow = async (targetUser: FollowUser) => {
     if (!isAuthenticated) {
-      window.location.href = "/login";
+      const nextPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : `/u/${username}`;
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
       return;
     }
     if (targetUser.is_self) return;

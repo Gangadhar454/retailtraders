@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
 
@@ -72,6 +73,7 @@ function StatCell({
 }
 
 export function ProfileView({ username }: { username: string }) {
+  const router = useRouter();
   const { user: authUser, isAuthenticated } = useAuth();
   const [exportOpen, setExportOpen] = useState(false);
   const [followModalOpen, setFollowModalOpen] = useState(false);
@@ -147,7 +149,7 @@ export function ProfileView({ username }: { username: string }) {
 
   const handleToggleFollow = async () => {
     if (!isAuthenticated) {
-      window.location.href = "/login";
+      router.push(`/login?next=${encodeURIComponent(`/u/${username}`)}`);
       return;
     }
     if (isSelf || followLoading) return;
